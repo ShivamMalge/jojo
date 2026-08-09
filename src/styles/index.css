@@ -510,21 +510,55 @@ h2 {
 .toggle {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  border: 1px solid #cfd7e6;
-  border-radius: 999px;
-  padding: 0 10px;
-  background: #ffffff;
+  gap: 8px;
+  cursor: pointer;
   color: #53627b;
   font-size: 12px;
   font-weight: 800;
+  text-transform: uppercase;
 }
 
 .toggle input {
-  width: 15px;
-  height: 15px;
-  accent-color: #3159c9;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle .slider {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background-color: #cfd7e6;
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.toggle .slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle input:checked + .slider {
+  background-color: #3159c9;
+}
+
+.toggle input:focus-visible + .slider {
+  outline: 2px solid #3159c9;
+  outline-offset: 2px;
+}
+
+.toggle input:checked + .slider:before {
+  transform: translateX(16px);
 }
 
 .sensei-panel.disabled .messages {

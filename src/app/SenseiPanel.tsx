@@ -23,6 +23,7 @@ export default function SenseiPanel({ messages, draft, busy, enabled, onEnabledC
         <div className="sensei-actions">
           <label className="toggle" title="Enable AI Sensei">
             <input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} />
+            <span className="slider"></span>
             <span>{enabled ? 'On' : 'Off'}</span>
           </label>
           <button className="icon-button" onClick={onHint} disabled={busy || !enabled} title="Get a stuck hint" aria-label="Get a stuck hint">
