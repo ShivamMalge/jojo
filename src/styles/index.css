@@ -37,7 +37,7 @@ button:disabled {
   grid-template-columns: minmax(260px, 0.72fr) minmax(420px, 1.25fr) minmax(320px, 0.82fr) minmax(300px, 0.72fr);
   gap: 12px;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 52px);
   padding: 12px;
 }
 
@@ -547,7 +547,7 @@ h2 {
 
 .auth-shell,
 .admin-shell {
-  min-height: 100vh;
+  min-height: calc(100vh - 52px);
   padding: 24px;
   background: #f1f4f8;
 }
@@ -712,4 +712,37 @@ h2 {
     border-right: 0;
     border-bottom: 1px solid #273244;
   }
+}
+
+.global-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 52px;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #d9dee8;
+  box-shadow: 0 2px 4px rgba(27, 38, 59, 0.03);
+}
+
+.global-header .logos {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.global-header .logo {
+  height: 32px;
+  object-fit: contain;
+}
+
+.global-header .header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  border-left: 1px solid #d9dee8;
+  padding-left: 16px;
 }

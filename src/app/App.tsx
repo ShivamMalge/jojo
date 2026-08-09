@@ -27,6 +27,7 @@ import LearningPanel from './LearningPanel';
 import SenseiPanel from './SenseiPanel';
 import { starterCode } from './examples';
 import { cheatSections, practiceQuestions } from './learningContent';
+import Header from './Header';
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -188,35 +189,50 @@ ${code}
 Guide the student toward the next small edit. Do not reveal the full reference answer unless they explicitly ask for the answer.`;
   }
 
-  if (!authChecked) return <main className="auth-shell">Loading Jojo...</main>;
+  if (!authChecked) {
+    return (
+      <>
+        <Header />
+        <main className="auth-shell">Loading Jojo...</main>
+      </>
+    );
+  }
 
   if (!user) {
     return (
-      <AuthScreen
-        onAuthed={(nextUser) => {
-          setUser(nextUser);
-          void getSettings().then((response) => setSettings(response.settings));
-        }}
-      />
+      <>
+        <Header />
+        <AuthScreen
+          onAuthed={(nextUser) => {
+            setUser(nextUser);
+            void getSettings().then((response) => setSettings(response.settings));
+          }}
+        />
+      </>
     );
   }
 
   if (user.role === 'admin' || user.role === 'manager') {
     return (
-      <AdminManagerScreen
-        user={user}
-        settings={settings}
-        onSettingsChange={setSettings}
-        onLogout={() => {
-          logout();
-          setUser(null);
-        }}
-      />
+      <>
+        <Header />
+        <AdminManagerScreen
+          user={user}
+          settings={settings}
+          onSettingsChange={setSettings}
+          onLogout={() => {
+            logout();
+            setUser(null);
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <main className="app-shell">
+    <>
+      <Header />
+      <main className="app-shell">
       <LearningPanel
         questions={practiceQuestions}
         selectedQuestion={selectedQuestion}
@@ -259,6 +275,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
         onHint={handleHint}
       />
     </main>
+    </>
   );
 }
 
