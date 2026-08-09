@@ -80,7 +80,7 @@ char name[20] = "Ravi"; // text (use double quotes, needs [] for size)
 | `!=` | not equal to | `a != b` |
 | `>` `<` `>=` `<=` | greater/less than | `a > b` |
 | `&&` | AND (both conditions true) | `a>0 && b>0` |
-| `\|\|` | OR (either condition true) | `a>0 \|\| b>0` |
+| `||` | OR (either condition true) | `a>0 || b>0` |
 | `++` | increase by 1 | `i++` |
 | `--` | decrease by 1 | `i--` |
 
@@ -111,20 +111,7 @@ if (a > b);   // ❌ WRONG — this does nothing, ends the if here
 
 ---
 
-## 7. switch-case — Choosing from Many Options
-```c
-switch (variable) {
-    case 1: printf("One"); break;
-    case 2: printf("Two"); break;
-    default: printf("Other");
-}
-```
-✅ Always add `break;` at the end of each case — otherwise it will run all the cases below it too ("fall-through").
-✅ `default` handles any value not listed above — good practice to always include it.
-
----
-
-## 8. Loops — Repeating Code
+## 7. Loops — Repeating Code
 
 **for loop** — use when you know how many times to repeat:
 ```c
@@ -156,23 +143,7 @@ do {
 
 ---
 
-## 9. Arrays — Storing Many Values Together
-```c
-int marks[5] = {80, 90, 70, 60, 100};
-printf("%d", marks[0]);  // prints 80 — first item!
-```
-✅ Counting starts from **0**, not 1. `marks[0]` is the 1st item, `marks[4]` is the 5th (last) item.
-❌ Don't try to access `marks[5]` in a 5-item array — the valid spots are only `marks[0]` to `marks[4]`.
-
-Looping through an array:
-```c
-for (int i = 0; i < 5; i++)
-    printf("%d ", marks[i]);
-```
-
----
-
-## 10. Strings — Working with Text
+## 8. Strings — Working with Text
 ```c
 #include <string.h>          // needed for string functions
 char word[20] = "school";
@@ -187,38 +158,19 @@ strcmp(a, b);        // returns 0 if a and b are exactly equal
 
 ---
 
-## 11. Functions — Reusable Blocks of Code
-```c
-int add(int a, int b) {   // function definition
-    return a + b;
-}
-
-int main() {
-    int result = add(4, 5);  // function call
-    printf("%d", result);
-    return 0;
-}
-```
-✅ A function needs: a return type (`int`), a name, and `( )` for inputs (parameters).
-✅ `return` sends the answer back to wherever the function was called.
-❌ If a function returns something (like `int`), don't forget the `return` statement.
-
----
-
-## 12. Quick "Add / Don't Add" Checklist
+## 9. Quick "Add / Don't Add" Checklist
 
 | Always add ✅ | Don't forget to avoid ❌ |
 |----------------|---------------------------|
 | `#include <stdio.h>` at the top | Missing semicolons `;` |
 | `return 0;` at the end of main | Using `=` instead of `==` in conditions |
 | `&` before variable names in `scanf` (not for strings) | Forgetting `i++` inside while loops |
-| `break;` after each `case` in switch | Accessing an array index that doesn't exist |
 | Matching curly braces `{ }` | Mixing up `%d`, `%f`, `%c`, `%s` |
 | `#include <string.h>` for string functions | Forgetting `[size]` when declaring a string |
 
 ---
 
-## 13. How to Read Any Program (Simple Method)
+## 10. How to Read Any Program (Simple Method)
 1. Find `main()` — that's where the program starts.
 2. Read top to bottom, line by line.
 3. When you see a loop, imagine running it step-by-step on paper.
