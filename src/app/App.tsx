@@ -307,11 +307,6 @@ Guide the student toward the next small edit. Do not reveal the full reference a
         onHint={handleHint}
       />
       </main>
-      <footer className="global-footer">
-        Developed with ❤️ by students at Atria IT |{' '}
-        <a href="https://www.linkedin.com/in/dev0root/" target="_blank" rel="noopener noreferrer">Deva Kumar</a> &{' '}
-        <a href="https://www.linkedin.com/in/shivam-malge-12523a293/" target="_blank" rel="noopener noreferrer">Shivam Malge</a>
-      </footer>
     </>
   );
 }
