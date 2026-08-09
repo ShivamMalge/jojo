@@ -1,5 +1,5 @@
 import atriaLogo from '../assets/logos/atria.webp';
-import iseLogoRemovedBg from '../assets/logos/ise-dark.png';
+import iseLogoLight from '../assets/logos/new_ise.png';
 import iseLogoDark from '../assets/logos/ise-untitled.png';
 import { Sun, Moon, Lightbulb } from 'lucide-react';
 
@@ -18,7 +18,7 @@ export default function Header({
     <header className="global-header">
       <div className="logos">
         <img src={atriaLogo} alt="ATRIA Logo" className="logo" />
-        <img src={theme === 'dark' ? iseLogoDark : iseLogoRemovedBg} alt="ISE Logo" className="logo" />
+        <img src={theme === 'dark' ? iseLogoDark : iseLogoLight} alt="ISE Logo" className="logo" />
       </div>
       <span className="header-title">Jojo</span>
       <div style={{ flex: 1 }} />
