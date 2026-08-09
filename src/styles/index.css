@@ -876,7 +876,6 @@ h2 {
 .global-header .logo {
   height: 32px;
   object-fit: contain;
-  mix-blend-mode: multiply;
 }
 
 .global-header .header-title {
