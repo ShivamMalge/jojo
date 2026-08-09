@@ -28,14 +28,7 @@ import SenseiPanel from './SenseiPanel';
 import { starterCode } from './examples';
 import { cheatSections, practiceQuestions } from './learningContent';
 import Header from './Header';
-
-const Footer = () => (
-  <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: 30, zIndex: 99999, background: 'var(--surface)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-    Developed with ❤️ by students at Atria IT |&nbsp;
-    <a href="https://www.linkedin.com/in/dev0root/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', margin: '0 4px' }}>Deva Kumar</a> &amp;&nbsp;
-    <a href="https://www.linkedin.com/in/shivam-malge-12523a293/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', margin: '0 4px' }}>Shivam Malge</a>
-  </div>
-);
+import Footer from './Footer';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
