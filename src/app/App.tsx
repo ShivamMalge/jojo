@@ -30,6 +30,20 @@ import { cheatSections, practiceQuestions } from './learningContent';
 import Header from './Header';
 
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('jojo-theme') as 'light' | 'dark') ||
+           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('jojo-theme', theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }
+
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ focusMinutes: 120 });
@@ -192,7 +206,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
   if (!authChecked) {
     return (
       <>
-        <Header />
+        <Header theme={theme} onThemeToggle={toggleTheme} />
         <main className="auth-shell">Loading Jojo...</main>
       </>
     );
@@ -201,7 +215,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
   if (!user) {
     return (
       <>
-        <Header />
+        <Header theme={theme} onThemeToggle={toggleTheme} />
         <AuthScreen
           onAuthed={(nextUser) => {
             setUser(nextUser);
@@ -215,7 +229,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
   if (user.role === 'admin' || user.role === 'manager') {
     return (
       <>
-        <Header />
+        <Header theme={theme} onThemeToggle={toggleTheme} />
         <AdminManagerScreen
           user={user}
           settings={settings}
@@ -231,7 +245,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
 
   return (
     <>
-      <Header />
+      <Header theme={theme} onThemeToggle={toggleTheme} />
       <main className="app-shell">
       <LearningPanel
         questions={practiceQuestions}
@@ -263,7 +277,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
           setUser(null);
         }}
       />
-      <DiagramPanel code={code} />
+      <DiagramPanel code={code} theme={theme} />
       <SenseiPanel
         messages={messages}
         draft={draft}

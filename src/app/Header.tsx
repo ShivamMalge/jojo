@@ -1,7 +1,13 @@
 import atriaLogo from '../assets/logos/atria.webp';
 import iseLogo from '../assets/logos/ise.jpg';
+import { Sun, Moon } from 'lucide-react';
 
-export default function Header() {
+interface HeaderProps {
+  theme?: 'light' | 'dark';
+  onThemeToggle?: () => void;
+}
+
+export default function Header({ theme = 'light', onThemeToggle }: HeaderProps) {
   return (
     <header className="global-header">
       <div className="logos">
@@ -9,6 +15,12 @@ export default function Header() {
         <img src={iseLogo} alt="ISE Logo" className="logo" />
       </div>
       <span className="header-title">Jojo</span>
+      <div style={{ flex: 1 }} />
+      {onThemeToggle && (
+        <button className="icon-button" onClick={onThemeToggle} aria-label="Toggle theme">
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
+      )}
     </header>
   );
 }
