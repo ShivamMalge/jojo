@@ -35,15 +35,10 @@ export default function App() {
            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   });
 
-  const [learningOpen, setLearningOpen] = useState(true);
   const [senseiOpen, setSenseiOpen] = useState(true);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === '.') {
-        e.preventDefault();
-        setLearningOpen(o => !o);
-      }
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
         setSenseiOpen(o => !o);
@@ -266,12 +261,10 @@ Guide the student toward the next small edit. Do not reveal the full reference a
       <Header 
         theme={theme} 
         onThemeToggle={toggleTheme}
-        learningOpen={learningOpen}
-        onLearningToggle={() => setLearningOpen(o => !o)}
         senseiOpen={senseiOpen}
         onSenseiToggle={() => setSenseiOpen(o => !o)}
       />
-      <main className={`app-shell ${!learningOpen ? 'hide-learning' : ''} ${!senseiOpen ? 'hide-sensei' : ''}`}>
+      <main className={`app-shell ${!senseiOpen ? 'hide-sensei' : ''}`}>
       <LearningPanel
         questions={practiceQuestions}
         selectedQuestion={selectedQuestion}
