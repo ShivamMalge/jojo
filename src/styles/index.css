@@ -118,7 +118,7 @@ button:disabled {
   grid-template-columns: var(--col-learning) var(--col-editor) var(--col-diagram) var(--col-sensei);
   gap: 12px;
   width: 100vw;
-  height: calc(100vh - 52px - 28px);
+  height: calc(100vh - 52px - 32px);
   padding: 12px;
   transition: grid-template-columns 0.3s ease;
 }
