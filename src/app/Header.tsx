@@ -1,5 +1,5 @@
-import atriaLogo from '../assets/logos/atria.png';
-import iseLogo from '../assets/logos/ise.png';
+import atriaLogo from '../assets/logos/atria.webp';
+import iseLogo from '../assets/logos/ise.jpg';
 
 export default function Header() {
   return (
