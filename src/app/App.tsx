@@ -65,7 +65,7 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ focusMinutes: 120 });
-  const [code, setCode] = useState(starterCode);
+  const [code, setCode] = useState('');
   const [stdin, setStdin] = useState('');
   const [output, setOutput] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -76,7 +76,7 @@ export default function App() {
   const [senseiEnabled, setSenseiEnabled] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState(1);
   const [selectedCheatId, setSelectedCheatId] = useState(cheatSections[0]?.id || '');
-  const [lastIdleCode, setLastIdleCode] = useState(starterCode);
+  const [lastIdleCode, setLastIdleCode] = useState('');
   const [assignment, setAssignment] = useState<QuestionAssignment | null>(null);
   const [compileCount, setCompileCount] = useState(0);
 

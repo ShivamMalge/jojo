@@ -62,15 +62,17 @@ export default function EditorPanel({
         onChange={(event) => onCodeChange(event.target.value)}
         aria-label="C source code"
       />
-      <div className="io-grid">
+      <div className={`io-grid ${output ? 'has-output' : ''}`}>
         <label>
           <span>stdin</span>
           <textarea value={stdin} onChange={(event) => onStdinChange(event.target.value)} aria-label="Program input" />
         </label>
-        <div className="terminal" aria-live="polite">
-          <span>output</span>
-          <pre>{formatOutput(output)}</pre>
-        </div>
+        {output && (
+          <div className="terminal" aria-live="polite">
+            <span>output</span>
+            <pre>{formatOutput(output)}</pre>
+          </div>
+        )}
       </div>
     </section>
   );

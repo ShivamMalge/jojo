@@ -293,10 +293,14 @@ h2 {
 
 .io-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
+  grid-template-columns: 1fr;
   min-height: 170px;
   border-top: 1px solid var(--editor-border);
   background: var(--terminal-bg);
+}
+
+.io-grid.has-output {
+  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
 }
 
 .io-grid label,
@@ -308,6 +312,10 @@ h2 {
 }
 
 .io-grid label {
+  border-right: none;
+}
+
+.io-grid.has-output label {
   border-right: 1px solid var(--editor-border);
 }
 
@@ -835,7 +843,7 @@ h2 {
     min-height: 520px;
   }
 
-  .io-grid {
+  .io-grid, .io-grid.has-output {
     grid-template-columns: 1fr;
   }
 
