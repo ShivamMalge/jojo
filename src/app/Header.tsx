@@ -1,5 +1,6 @@
 import atriaLogo from '../assets/logos/atria.webp';
 import iseLogo from '../assets/logos/ise.jpg';
+import iseDarkLogo from '../assets/logos/ise-dark.png';
 import { Sun, Moon, Lightbulb } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,7 +18,7 @@ export default function Header({
     <header className="global-header">
       <div className="logos">
         <img src={atriaLogo} alt="ATRIA Logo" className="logo" />
-        <img src={iseLogo} alt="ISE Logo" className="logo" />
+        <img src={theme === 'dark' ? iseDarkLogo : iseLogo} alt="ISE Logo" className="logo" />
       </div>
       <span className="header-title">Jojo</span>
       <div style={{ flex: 1 }} />
