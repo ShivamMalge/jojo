@@ -2,33 +2,43 @@ import { useEffect, useMemo, useRef } from 'react';
 import mermaid from 'mermaid';
 import { analyzeC, findCRelationships, generateMermaid } from '../lib/cAnalysis';
 
-mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: 'strict',
-  theme: 'base',
-  themeVariables: {
-    background: '#f7f8fb',
-    primaryColor: '#e7f0ff',
-    primaryTextColor: '#172033',
-    primaryBorderColor: '#5472d3',
-    lineColor: '#6f7787',
-    secondaryColor: '#eef6ed',
-    tertiaryColor: '#fff4d8',
-    fontFamily: 'Inter, ui-sans-serif, system-ui',
-  },
-});
-
 interface DiagramPanelProps {
   code: string;
+  theme?: 'light' | 'dark';
 }
 
-export default function DiagramPanel({ code }: DiagramPanelProps) {
+export default function DiagramPanel({ code, theme = 'light' }: DiagramPanelProps) {
   const diagramRef = useRef<HTMLDivElement | null>(null);
   const mermaidText = useMemo(() => generateMermaid(code), [code]);
   const analysis = useMemo(() => analyzeC(code), [code]);
   const relationships = useMemo(() => findCRelationships(code), [code]);
 
   useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      themeVariables: theme === 'dark' ? {
+        background: '#101521',
+        primaryColor: '#222d45',
+        primaryTextColor: '#e0e7f5',
+        primaryBorderColor: '#4f75f5',
+        lineColor: '#7c8fa8',
+        secondaryColor: '#1c281e',
+        tertiaryColor: '#2a4224',
+        fontFamily: 'Inter, ui-sans-serif, system-ui',
+      } : {
+        background: '#f7f8fb',
+        primaryColor: '#e7f0ff',
+        primaryTextColor: '#172033',
+        primaryBorderColor: '#5472d3',
+        lineColor: '#6f7787',
+        secondaryColor: '#eef6ed',
+        tertiaryColor: '#fff4d8',
+        fontFamily: 'Inter, ui-sans-serif, system-ui',
+      },
+    });
+
     let cancelled = false;
     async function render() {
       if (!diagramRef.current) return;
@@ -47,7 +57,7 @@ export default function DiagramPanel({ code }: DiagramPanelProps) {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [mermaidText]);
+  }, [mermaidText, theme]);
 
   return (
     <section className="diagram-panel" aria-label="Live code diagram">

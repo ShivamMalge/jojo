@@ -27,12 +27,41 @@ import LearningPanel from './LearningPanel';
 import SenseiPanel from './SenseiPanel';
 import { starterCode } from './examples';
 import { cheatSections, practiceQuestions } from './learningContent';
+import Header from './Header';
+import Footer from './Footer';
 
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('jojo-theme') as 'light' | 'dark') ||
+           (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  });
+
+  const [senseiOpen, setSenseiOpen] = useState(true);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setSenseiOpen(o => !o);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('jojo-theme', theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }
+
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ focusMinutes: 120 });
-  const [code, setCode] = useState(starterCode);
+  const [code, setCode] = useState('');
   const [stdin, setStdin] = useState('');
   const [output, setOutput] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -43,7 +72,7 @@ export default function App() {
   const [senseiEnabled, setSenseiEnabled] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState(1);
   const [selectedCheatId, setSelectedCheatId] = useState(cheatSections[0]?.id || '');
-  const [lastIdleCode, setLastIdleCode] = useState(starterCode);
+  const [lastIdleCode, setLastIdleCode] = useState('');
   const [assignment, setAssignment] = useState<QuestionAssignment | null>(null);
   const [compileCount, setCompileCount] = useState(0);
 
@@ -188,35 +217,57 @@ ${code}
 Guide the student toward the next small edit. Do not reveal the full reference answer unless they explicitly ask for the answer.`;
   }
 
-  if (!authChecked) return <main className="auth-shell">Loading Jojo...</main>;
+  if (!authChecked) {
+    return (
+      <>
+        <Header theme={theme} onThemeToggle={toggleTheme} />
+        <main className="auth-shell">Loading Jojo...</main>
+        <Footer />
+      </>
+    );
+  }
 
   if (!user) {
     return (
-      <AuthScreen
-        onAuthed={(nextUser) => {
-          setUser(nextUser);
-          void getSettings().then((response) => setSettings(response.settings));
-        }}
-      />
+      <>
+        <Header theme={theme} onThemeToggle={toggleTheme} />
+        <AuthScreen
+          onAuthed={(nextUser) => {
+            setUser(nextUser);
+            void getSettings().then((response) => setSettings(response.settings));
+          }}
+        />
+        <Footer />
+      </>
     );
   }
 
   if (user.role === 'admin' || user.role === 'manager') {
     return (
-      <AdminManagerScreen
-        user={user}
-        settings={settings}
-        onSettingsChange={setSettings}
-        onLogout={() => {
-          logout();
-          setUser(null);
-        }}
-      />
+      <>
+        <Header theme={theme} onThemeToggle={toggleTheme} />
+        <AdminManagerScreen
+          user={user}
+          settings={settings}
+          onSettingsChange={setSettings}
+          onLogout={() => {
+            logout();
+            setUser(null);
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <main className="app-shell">
+    <>
+      <Header 
+        theme={theme} 
+        onThemeToggle={toggleTheme}
+        senseiOpen={senseiOpen}
+        onSenseiToggle={() => setSenseiOpen(o => !o)}
+      />
+      <main className={`app-shell ${!senseiOpen ? 'hide-sensei' : ''}`}>
       <LearningPanel
         questions={practiceQuestions}
         selectedQuestion={selectedQuestion}
@@ -247,7 +298,7 @@ Guide the student toward the next small edit. Do not reveal the full reference a
           setUser(null);
         }}
       />
-      <DiagramPanel code={code} />
+      <DiagramPanel code={code} theme={theme} />
       <SenseiPanel
         messages={messages}
         draft={draft}
@@ -258,7 +309,9 @@ Guide the student toward the next small edit. Do not reveal the full reference a
         onSend={() => handleSend()}
         onHint={handleHint}
       />
-    </main>
+      </main>
+      <Footer />
+    </>
   );
 }
 
