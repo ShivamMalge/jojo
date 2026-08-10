@@ -3,7 +3,7 @@ main = "worker/src/index.ts"
 compatibility_date = "2024-12-05"
 
 [vars]
-APP_ORIGIN = "http://127.0.0.1:5173"
+APP_ORIGIN = "*"
 JUDGE0_BASE_URL = "https://ce.judge0.com"
 JUDGE0_C_LANGUAGE_ID = "50"
 OPENROUTER_MODEL = "openai/gpt-4o-mini"
