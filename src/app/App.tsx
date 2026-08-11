@@ -154,7 +154,7 @@ export default function App() {
       setAssignment(response.assignment);
       setSelectedQuestionId(response.assignment.questionId);
     } catch {
-      const picked = practiceQuestions[Math.floor(Math.random() * practiceQuestions.length)] || practiceQuestions[0];
+      const picked = practiceQuestions[0];
       setAssignment({ id: 'local', questionId: picked.id, title: picked.title, explanation: picked.explanation });
       setSelectedQuestionId(picked.id);
     }
