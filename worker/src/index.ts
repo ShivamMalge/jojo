@@ -285,7 +285,7 @@ async function assignQuestion(request: Request, env: Env): Promise<Response> {
     limit 1
   `) as unknown[];
   if (active[0] && !body.forceNext) return json({ assignment: active[0] }, env);
-  const picked = questions[Math.floor(Math.random() * questions.length)];
+  const picked = (!active[0] && !body.forceNext) ? questions[0] : questions[Math.floor(Math.random() * questions.length)];
   const rows = (await db`
     insert into student_question_assignments (user_id, question_id, question_title, question_explanation)
     values (${user.id}, ${picked.id}, ${picked.title}, ${picked.explanation || ''})
