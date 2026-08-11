@@ -87,7 +87,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user || user.role !== 'student') return;
-    void pickAssignedQuestion(false);
+    // void pickAssignedQuestion(false);
   }, [user]);
 
   useEffect(() => {
