@@ -544,6 +544,51 @@ h2 {
   font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
+.cheat-markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cheat-markdown-table th,
+.cheat-markdown-table td {
+  padding: 6px 10px;
+  border: 1px solid var(--border-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.cheat-markdown-table th {
+  background: var(--surface-alt);
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.cheat-markdown-table tr:nth-child(even) {
+  background: var(--surface-alt);
+}
+
+.cheat-inline-code {
+  background: var(--surface-disabled);
+  color: var(--accent);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+}
+
+.cheat-line {
+  margin: 5px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+
 .mini-heading {
   margin-bottom: 8px;
   color: var(--text-heading);
