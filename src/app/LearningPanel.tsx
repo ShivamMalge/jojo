@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, ListChecks, Shuffle } from 'lucide-react';
+import { BookOpen, CheckCircle2, ListChecks, ChevronRight, ChevronLeft } from 'lucide-react';
 import type { CheatSection, PracticeQuestion } from './learningContent';
 
 interface LearningPanelProps {
@@ -7,8 +7,6 @@ interface LearningPanelProps {
   cheatSections: CheatSection[];
   selectedCheatId: string;
   onQuestionChange: (id: number) => void;
-  onRandomQuestion: () => void;
-  randomLocked: boolean;
   onCheatChange: (id: string) => void;
 }
 
@@ -18,8 +16,6 @@ export default function LearningPanel({
   cheatSections,
   selectedCheatId,
   onQuestionChange,
-  onRandomQuestion,
-  randomLocked,
   onCheatChange,
 }: LearningPanelProps) {
   const selectedCheat = cheatSections.find((section) => section.id === selectedCheatId) || cheatSections[0];
@@ -28,31 +24,48 @@ export default function LearningPanel({
     <section className="learning-panel" aria-label="Practice and cheatsheet">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Manual Coding</p>
-          <h2>Practice question</h2>
+          <p className="eyebrow">Sequential Practice</p>
+          <h2>Question {selectedQuestion.id} of {questions.length}</h2>
         </div>
         <ListChecks size={20} />
       </div>
       <div className="question-picker">
-        <label>
-          <span>Question</span>
-          <select value={selectedQuestion.id} disabled={randomLocked} onChange={(event) => onQuestionChange(Number(event.target.value))}>
+        <div className="sequential-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+          <button
+            className="icon-text-button"
+            type="button"
+            disabled={selectedQuestion.id <= 1}
+            onClick={() => onQuestionChange(selectedQuestion.id - 1)}
+            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <select
+            value={selectedQuestion.id}
+            onChange={(event) => onQuestionChange(Number(event.target.value))}
+            style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color, #ccc)' }}
+          >
             {questions.map((question) => (
               <option key={question.id} value={question.id}>
                 Q{question.id}. {question.title}
               </option>
             ))}
           </select>
-        </label>
-        <button className="random-question-button" type="button" onClick={onRandomQuestion} disabled={randomLocked}>
-          <Shuffle size={16} />
-          {randomLocked ? 'Fixed until compile' : 'Random question'}
-        </button>
+          <button
+            className="icon-text-button"
+            type="button"
+            disabled={selectedQuestion.id >= questions.length}
+            onClick={() => onQuestionChange(selectedQuestion.id + 1)}
+            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
         <div className="question-card">
           <strong>
             Q{selectedQuestion.id}. {selectedQuestion.title}
           </strong>
-          <p>{selectedQuestion.explanation || 'Write the code yourself first. Run it, read the output, then use the cheatsheet if you get stuck.'}</p>
+          <p>{selectedQuestion.explanation || 'Write the code yourself first. Run it to verify, then click Submit to record completion and proceed to next question.'}</p>
         </div>
       </div>
       <div className="cheatsheet">
@@ -101,34 +114,117 @@ export default function LearningPanel({
 }
 
 function MarkdownLite({ markdown }: { markdown: string }) {
-  const blocks = markdown.split(/```(?:c)?\n|```/g);
+  const blocks = markdown.split(/(```[\s\S]*?```)/g);
+
   return (
-    <>
-      {blocks.map((block, index) =>
-        index % 2 === 1 ? (
-          <pre className="cheat-code" key={index}>
-            {block.trim()}
-          </pre>
-        ) : (
-          <div className="cheat-copy" key={index}>
-            {block
-              .split('\n')
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .map((line, lineIndex) => (
-                <p key={`${index}-${lineIndex}`}>{cleanMarkdownLine(line)}</p>
-              ))}
-          </div>
-        ),
-      )}
-    </>
+    <div className="cheat-body">
+      {blocks.map((block, blockIndex) => {
+        if (!block) return null;
+        if (block.startsWith('```')) {
+          const lines = block.split('\n');
+          const code = lines.slice(1, lines.length - 1).join('\n');
+          return (
+            <pre className="cheat-code" key={blockIndex}>
+              <code>{code}</code>
+            </pre>
+          );
+        }
+
+        return <div key={blockIndex}>{parseMarkdownText(block)}</div>;
+      })}
+    </div>
   );
 }
 
-function cleanMarkdownLine(line: string): string {
-  return line
-    .replace(/^[-|]+\s*$/g, '')
-    .replace(/^[-✅❌]\s*/, '')
-    .replace(/\*\*/g, '')
-    .replace(/`/g, '');
+function parseMarkdownText(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    // Check if table row (starts and ends with '|')
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 1) {
+        const headerRow = tableLines[0]
+          .split('|')
+          .slice(1, -1)
+          .map((c) => c.trim());
+
+        const hasDivider = tableLines.length > 1 && tableLines[1].includes('---');
+        const bodyLines = hasDivider ? tableLines.slice(2) : tableLines.slice(1);
+
+        result.push(
+          <div key={`table-${i}`} style={{ overflowX: 'auto', margin: '8px 0' }}>
+            <table className="cheat-markdown-table">
+              <thead>
+                <tr>
+                  {headerRow.map((cell, idx) => (
+                    <th key={idx}>{renderInlineMarkdown(cell)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bodyLines.map((rowStr, rowIdx) => {
+                  const cells = rowStr
+                    .split('|')
+                    .slice(1, -1)
+                    .map((c) => c.trim());
+                  return (
+                    <tr key={rowIdx}>
+                      {cells.map((cell, cellIdx) => (
+                        <td key={cellIdx}>{renderInlineMarkdown(cell)}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>,
+        );
+        continue;
+      }
+    }
+
+    // Regular line / paragraph
+    result.push(
+      <p key={`line-${i}`} className="cheat-line">
+        {renderInlineMarkdown(line)}
+      </p>,
+    );
+    i++;
+  }
+
+  return result;
 }
+
+function renderInlineMarkdown(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+      return (
+        <code key={index} className="cheat-inline-code">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+

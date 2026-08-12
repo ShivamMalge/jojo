@@ -116,6 +116,70 @@ export interface QuestionAssignment {
   explanation?: string;
 }
 
+export async function submitQuestion(questionId: number, code?: string): Promise<{ ok: boolean; nextQuestionId: number }> {
+  return post('/questions/submit', { questionId, code }, getToken());
+}
+
+export async function createRoom(name: string, roomCode?: string): Promise<{ room: RoomInfo }> {
+  return post('/rooms/create', { name, roomCode }, getToken());
+}
+
+export async function getMyRooms(): Promise<{ rooms: RoomInfo[] }> {
+  return get('/rooms/my', getToken());
+}
+
+export async function joinRoom(roomCode: string): Promise<{ joined: boolean; room: RoomInfo }> {
+  return post('/rooms/join', { roomCode }, getToken());
+}
+
+export async function getActiveRoom(): Promise<{ room: RoomInfo | null }> {
+  return get('/rooms/active', getToken());
+}
+
+export async function leaveRoom(): Promise<{ ok: boolean }> {
+  return post('/rooms/leave', {}, getToken());
+}
+
+export async function getRoomDashboard(roomId: string): Promise<{ room: RoomInfo; students: RoomStudent[]; executionRecords: ExecutionRecord[] }> {
+  return get(`/rooms/dashboard?roomId=${encodeURIComponent(roomId)}`, getToken());
+}
+
+export interface RoomInfo {
+  id: string;
+  name: string;
+  roomCode: string;
+  maxCapacity?: number;
+  totalStudents?: number;
+  onlineStudents?: number;
+  createdAt?: string;
+}
+
+export interface RoomStudent {
+  id: string;
+  username: string;
+  email: string;
+  joinedAt: string;
+  lastActiveAt: string;
+  isOnline: boolean;
+  finishedCount: number;
+  compileCount: number;
+  successCount: number;
+  lastCompileAt?: string;
+}
+
+export interface ExecutionRecord {
+  id: string;
+  userId: string;
+  username: string;
+  questionId: number;
+  code: string;
+  stdin: string;
+  statusId?: number;
+  statusDescription?: string;
+  succeeded: boolean;
+  createdAt: string;
+}
+
 export interface StudentProgress {
   id: string;
   username: string;
