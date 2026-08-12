@@ -331,6 +331,16 @@ Guide the student toward the next small edit. Do not reveal the full reference a
         onThemeToggle={toggleTheme}
         senseiOpen={senseiOpen}
         onSenseiToggle={() => setSenseiOpen(o => !o)}
+        activeRoom={activeRoom}
+        onJoinRoom={() => setShowRoomModal(true)}
+        onLeaveRoom={async () => {
+          try {
+            await leaveRoom();
+            setActiveRoom(null);
+          } catch {
+            // ignore
+          }
+        }}
       />
 
       {showRoomModal && (

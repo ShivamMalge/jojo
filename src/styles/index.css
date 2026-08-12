@@ -958,6 +958,77 @@ h2 {
   padding-left: 16px;
 }
 
+.header-room-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-room-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface-active);
+  border: 1px solid var(--border-alt);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+.header-room-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-room-code {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+
+.header-room-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.header-room-btn.join {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.header-room-btn.join:hover {
+  background: var(--accent-dark);
+}
+
+.header-room-btn.leave {
+  background: var(--surface-alt);
+  color: var(--error-text);
+  border-color: var(--border-dark);
+}
+
+.header-room-btn.leave:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+
 /* Output Panel — unified output-only view */
 .output-panel {
   display: flex;
