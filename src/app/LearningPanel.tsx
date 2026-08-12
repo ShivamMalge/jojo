@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, ListChecks, Shuffle } from 'lucide-react';
+import { BookOpen, CheckCircle2, ListChecks, ChevronRight, ChevronLeft } from 'lucide-react';
 import type { CheatSection, PracticeQuestion } from './learningContent';
 
 interface LearningPanelProps {
@@ -7,8 +7,6 @@ interface LearningPanelProps {
   cheatSections: CheatSection[];
   selectedCheatId: string;
   onQuestionChange: (id: number) => void;
-  onRandomQuestion: () => void;
-  randomLocked: boolean;
   onCheatChange: (id: string) => void;
 }
 
@@ -18,8 +16,6 @@ export default function LearningPanel({
   cheatSections,
   selectedCheatId,
   onQuestionChange,
-  onRandomQuestion,
-  randomLocked,
   onCheatChange,
 }: LearningPanelProps) {
   const selectedCheat = cheatSections.find((section) => section.id === selectedCheatId) || cheatSections[0];
@@ -28,31 +24,48 @@ export default function LearningPanel({
     <section className="learning-panel" aria-label="Practice and cheatsheet">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Manual Coding</p>
-          <h2>Practice question</h2>
+          <p className="eyebrow">Sequential Practice</p>
+          <h2>Question {selectedQuestion.id} of {questions.length}</h2>
         </div>
         <ListChecks size={20} />
       </div>
       <div className="question-picker">
-        <label>
-          <span>Question</span>
-          <select value={selectedQuestion.id} disabled={randomLocked} onChange={(event) => onQuestionChange(Number(event.target.value))}>
+        <div className="sequential-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+          <button
+            className="icon-text-button"
+            type="button"
+            disabled={selectedQuestion.id <= 1}
+            onClick={() => onQuestionChange(selectedQuestion.id - 1)}
+            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <select
+            value={selectedQuestion.id}
+            onChange={(event) => onQuestionChange(Number(event.target.value))}
+            style={{ flex: 1, padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color, #ccc)' }}
+          >
             {questions.map((question) => (
               <option key={question.id} value={question.id}>
                 Q{question.id}. {question.title}
               </option>
             ))}
           </select>
-        </label>
-        <button className="random-question-button" type="button" onClick={onRandomQuestion} disabled={randomLocked}>
-          <Shuffle size={16} />
-          {randomLocked ? 'Fixed until compile' : 'Random question'}
-        </button>
+          <button
+            className="icon-text-button"
+            type="button"
+            disabled={selectedQuestion.id >= questions.length}
+            onClick={() => onQuestionChange(selectedQuestion.id + 1)}
+            style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
         <div className="question-card">
           <strong>
             Q{selectedQuestion.id}. {selectedQuestion.title}
           </strong>
-          <p>{selectedQuestion.explanation || 'Write the code yourself first. Run it, read the output, then use the cheatsheet if you get stuck.'}</p>
+          <p>{selectedQuestion.explanation || 'Write the code yourself first. Run it to verify, then click Submit to record completion and proceed to next question.'}</p>
         </div>
       </div>
       <div className="cheatsheet">

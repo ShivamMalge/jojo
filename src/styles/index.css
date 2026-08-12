@@ -900,8 +900,9 @@ h2 {
 }
 
 .global-header .logo {
-  height: 32px;
+  height: 42px;
   object-fit: contain;
+  border-radius: 8px;
 }
 
 .global-header .header-title {
@@ -910,4 +911,87 @@ h2 {
   color: var(--text-primary-dark);
   border-left: 1px solid var(--border);
   padding-left: 16px;
+}
+
+/* Output Panel — unified output-only view */
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  height: 220px;
+  min-height: 160px;
+  border-top: 1px solid var(--editor-border);
+  background: var(--terminal-bg);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.output-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.output-panel-header span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--terminal-label);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.output-panel-body {
+  flex: 1;
+  padding: 12px 14px;
+  overflow: auto;
+}
+
+.output-panel-text {
+  margin: 0;
+  color: var(--terminal-text);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Input prompt inside output panel — blends seamlessly */
+.output-input-prompt {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 8px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.output-input-prompt strong {
+  color: #60a5fa;
+}
+
+.output-input-prompt kbd {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #e2e8f0;
+}
+
+.output-input-area {
+  width: 100%;
+  flex: 1;
+  min-height: 80px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.55;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  resize: none;
+  caret-color: #10b981;
+}
+
+.output-input-area::placeholder {
+  color: rgba(148, 163, 184, 0.4);
 }

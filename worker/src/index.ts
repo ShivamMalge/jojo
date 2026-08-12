@@ -47,6 +47,13 @@ export default {
       if (url.pathname === '/api/settings' && request.method === 'POST') return await updateSettings(request, env);
       if (url.pathname === '/api/progress' && request.method === 'GET') return await progress(request, env);
       if (url.pathname === '/api/questions/assign' && request.method === 'POST') return await assignQuestion(request, env);
+      if (url.pathname === '/api/questions/submit' && request.method === 'POST') return await submitQuestion(request, env);
+      if (url.pathname === '/api/rooms/create' && request.method === 'POST') return await createRoom(request, env);
+      if (url.pathname === '/api/rooms/my' && request.method === 'GET') return await getMyRooms(request, env);
+      if (url.pathname === '/api/rooms/join' && request.method === 'POST') return await joinRoom(request, env);
+      if (url.pathname === '/api/rooms/active' && request.method === 'GET') return await getActiveRoom(request, env);
+      if (url.pathname === '/api/rooms/leave' && request.method === 'POST') return await leaveRoom(request, env);
+      if (url.pathname === '/api/rooms/dashboard' && request.method === 'GET') return await roomDashboard(request, env);
       if (url.pathname === '/api/code-snapshot' && request.method === 'POST') return await codeSnapshot(request, env);
       if (url.pathname === '/api/run' && request.method === 'POST') return await runC(request, env);
       if (url.pathname === '/api/parse' && request.method === 'POST') return await parseC(request, env);
@@ -277,21 +284,262 @@ async function assignQuestion(request: Request, env: Env): Promise<Response> {
   const questions = (body.questions || []).filter((question) => question.id && question.title);
   if (!questions.length) return json({ error: 'Question list is required.' }, env, 400);
   const db = getDb(env);
+
+  // Update room activity
+  await db`update room_members set last_active_at = now() where user_id = ${user.id}`;
+
   const active = (await db`
     select id, question_id as "questionId", question_title as title, question_explanation as explanation
     from student_question_assignments
-    where user_id = ${user.id} and compiled_at is null
+    where user_id = ${user.id} and submitted_at is null
     order by assigned_at desc
     limit 1
-  `) as unknown[];
+  `) as unknown as Array<{ id: string; questionId: number; title: string; explanation: string }>;
+
   if (active[0] && !body.forceNext) return json({ assignment: active[0] }, env);
-  const picked = (!active[0] && !body.forceNext) ? questions[0] : questions[Math.floor(Math.random() * questions.length)];
+
+  // Determine next sequential question (Q1 -> Q2 -> Q3 ...)
+  let nextQId = 1;
+  if (active[0] && body.forceNext) {
+    nextQId = active[0].questionId + 1;
+  } else {
+    const highestSubmitted = (await db`
+      select coalesce(max(question_id), 0)::int as max_q
+      from student_question_assignments
+      where user_id = ${user.id} and submitted_at is not null
+    `) as unknown as Array<{ max_q: number }>;
+    const maxQ = highestSubmitted[0]?.max_q || 0;
+    nextQId = maxQ + 1;
+  }
+
+  if (nextQId > questions.length) {
+    nextQId = questions.length; // cap at highest available question
+  }
+
+  const picked = questions.find((q) => q.id === nextQId) || questions[0];
+
   const rows = (await db`
     insert into student_question_assignments (user_id, question_id, question_title, question_explanation)
     values (${user.id}, ${picked.id}, ${picked.title}, ${picked.explanation || ''})
     returning id, question_id as "questionId", question_title as title, question_explanation as explanation
   `) as unknown[];
   return json({ assignment: rows[0] }, env, 201);
+}
+
+async function submitQuestion(request: Request, env: Env): Promise<Response> {
+  const user = await requireRole(request, env, ['student']);
+  if (user instanceof Response) return user;
+  const body = await readJson<{ questionId: number; code?: string }>(request);
+  if (!body.questionId) return json({ error: 'questionId is required.' }, env, 400);
+
+  const db = getDb(env);
+
+  // Mark assignment submitted
+  await db`
+    update student_question_assignments
+    set submitted_at = coalesce(submitted_at, now()),
+        succeeded_at = coalesce(succeeded_at, now())
+    where user_id = ${user.id} and question_id = ${body.questionId}
+  `;
+
+  // Ensure an entry exists
+  const existing = (await db`
+    select id from student_question_assignments
+    where user_id = ${user.id} and question_id = ${body.questionId} and submitted_at is not null
+    limit 1
+  `) as unknown[];
+
+  if (!existing.length) {
+    await db`
+      insert into student_question_assignments (user_id, question_id, question_title, question_explanation, submitted_at, succeeded_at)
+      values (${user.id}, ${body.questionId}, ${'Question ' + body.questionId}, '', now(), now())
+    `;
+  }
+
+  // Update room member finished_count and last_active_at
+  await db`
+    update room_members
+    set finished_count = (
+      select count(distinct question_id)::int
+      from student_question_assignments
+      where user_id = ${user.id} and submitted_at is not null
+    ),
+    last_active_at = now()
+    where user_id = ${user.id}
+  `;
+
+  const nextQuestionId = body.questionId + 1;
+  return json({ ok: true, submittedQuestionId: body.questionId, nextQuestionId }, env);
+}
+
+async function createRoom(request: Request, env: Env): Promise<Response> {
+  const actor = await requireRole(request, env, ['manager', 'admin']);
+  if (actor instanceof Response) return actor;
+  const body = await readJson<{ name?: string; roomCode?: string }>(request);
+  const name = (body.name || '').trim();
+  if (!name) return json({ error: 'Room name is required.' }, env, 400);
+
+  let roomCode = (body.roomCode || '').trim().toUpperCase();
+  if (!roomCode) {
+    roomCode = generateRoomCode();
+  }
+
+  const db = getDb(env);
+  const existing = (await db`select id from rooms where lower(room_code) = ${roomCode.toLowerCase()} limit 1`) as unknown[];
+  if (existing.length) return json({ error: 'Room code already exists. Please pick another code.' }, env, 400);
+
+  const rows = (await db`
+    insert into rooms (name, room_code, manager_id, max_capacity)
+    values (${name}, ${roomCode}, ${actor.id}, 100)
+    returning id, name, room_code as "roomCode", manager_id as "managerId", max_capacity as "maxCapacity", created_at as "createdAt"
+  `) as unknown[];
+  return json({ room: rows[0] }, env, 201);
+}
+
+async function getMyRooms(request: Request, env: Env): Promise<Response> {
+  const actor = await requireRole(request, env, ['manager', 'admin']);
+  if (actor instanceof Response) return actor;
+  const db = getDb(env);
+  const rows = (await db`
+    select r.id, r.name, r.room_code as "roomCode", r.max_capacity as "maxCapacity", r.created_at as "createdAt",
+      count(rm.id)::int as "totalStudents",
+      count(rm.id) filter (where rm.last_active_at > now() - interval '5 minutes')::int as "onlineStudents"
+    from rooms r
+    left join room_members rm on rm.room_id = r.id
+    where r.manager_id = ${actor.id}
+    group by r.id
+    order by r.created_at desc
+  `) as unknown[];
+  return json({ rooms: rows }, env);
+}
+
+async function joinRoom(request: Request, env: Env): Promise<Response> {
+  const user = await requireRole(request, env, ['student']);
+  if (user instanceof Response) return user;
+  const body = await readJson<{ roomCode?: string }>(request);
+  const roomCode = (body.roomCode || '').trim().toUpperCase();
+  if (!roomCode) return json({ error: 'Room code is required.' }, env, 400);
+
+  const db = getDb(env);
+  const roomRows = (await db`
+    select id, name, room_code as "roomCode", max_capacity as "maxCapacity"
+    from rooms
+    where lower(room_code) = ${roomCode.toLowerCase()}
+    limit 1
+  `) as unknown as Array<{ id: string; name: string; roomCode: string; maxCapacity: number }>;
+
+  const room = roomRows[0];
+  if (!room) return json({ error: 'Invalid room code. Room not found.' }, env, 404);
+
+  const countRows = (await db`
+    select count(*)::int as count from room_members where room_id = ${room.id} and user_id != ${user.id}
+  `) as unknown as Array<{ count: number }>;
+  if (countRows[0].count >= room.maxCapacity) {
+    return json({ error: `Room is full. Maximum capacity is ${room.maxCapacity} students.` }, env, 400);
+  }
+
+  // Remove student from any previous room first
+  await db`delete from room_members where user_id = ${user.id}`;
+
+  await db`
+    insert into room_members (room_id, user_id, last_active_at)
+    values (${room.id}, ${user.id}, now())
+    on conflict (room_id, user_id) do update set last_active_at = now()
+  `;
+
+  return json({ joined: true, room: { id: room.id, name: room.name, roomCode: room.roomCode } }, env);
+}
+
+async function getActiveRoom(request: Request, env: Env): Promise<Response> {
+  const user = await getUserFromRequest(request, env);
+  if (!user) return json({ room: null }, env);
+  const db = getDb(env);
+  const rows = (await db`
+    select r.id, r.name, r.room_code as "roomCode"
+    from room_members rm
+    join rooms r on r.id = rm.room_id
+    where rm.user_id = ${user.id}
+    order by rm.joined_at desc
+    limit 1
+  `) as unknown[];
+
+  if (rows[0]) {
+    await db`update room_members set last_active_at = now() where user_id = ${user.id}`;
+  }
+  return json({ room: rows[0] || null }, env);
+}
+
+async function leaveRoom(request: Request, env: Env): Promise<Response> {
+  const user = await getUserFromRequest(request, env);
+  if (!user) return json({ ok: true }, env);
+  const db = getDb(env);
+  await db`delete from room_members where user_id = ${user.id}`;
+  return json({ ok: true }, env);
+}
+
+async function roomDashboard(request: Request, env: Env): Promise<Response> {
+  const actor = await requireRole(request, env, ['manager', 'admin']);
+  if (actor instanceof Response) return actor;
+  const url = new URL(request.url);
+  const roomId = url.searchParams.get('roomId');
+  if (!roomId) return json({ error: 'roomId parameter is required.' }, env, 400);
+
+  const db = getDb(env);
+  const roomRows = (actor.role === 'manager'
+    ? await db`
+        select id, name, room_code as "roomCode", max_capacity as "maxCapacity", created_at as "createdAt"
+        from rooms
+        where id = ${roomId} and manager_id = ${actor.id}
+        limit 1
+      `
+    : await db`
+        select id, name, room_code as "roomCode", max_capacity as "maxCapacity", created_at as "createdAt"
+        from rooms
+        where id = ${roomId}
+        limit 1
+      `) as unknown[];
+  const room = roomRows[0];
+  if (!room) return json({ error: 'Room not found or access denied.' }, env, 404);
+
+  const students = (await db`
+    select u.id, u.username, u.email, rm.joined_at as "joinedAt", rm.last_active_at as "lastActiveAt",
+      (rm.last_active_at > now() - interval '5 minutes') as "isOnline",
+      coalesce(rm.finished_count, 0)::int as "finishedCount",
+      count(ca.id)::int as "compileCount",
+      count(ca.id) filter (where ca.succeeded)::int as "successCount",
+      max(ca.created_at) as "lastCompileAt"
+    from room_members rm
+    join users u on u.id = rm.user_id
+    left join compile_attempts ca on ca.user_id = u.id
+    where rm.room_id = ${roomId}
+    group by u.id, u.username, u.email, rm.joined_at, rm.last_active_at, rm.finished_count
+    order by "isOnline" desc, rm.finished_count desc, u.username asc
+  `) as unknown[];
+
+  const executionRecords = (await db`
+    select ca.id, ca.user_id as "userId", u.username, ca.question_id as "questionId",
+      ca.code, ca.stdin, ca.status_id as "statusId", ca.status_description as "statusDescription",
+      ca.succeeded, ca.created_at as "createdAt"
+    from compile_attempts ca
+    join room_members rm on rm.user_id = ca.user_id
+    join users u on u.id = ca.user_id
+    where rm.room_id = ${roomId}
+    order by ca.created_at desc
+    limit 100
+  `) as unknown[];
+
+  return json({ room, students, executionRecords }, env);
+}
+
+function generateRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  const randomBytes = new Uint8Array(6);
+  crypto.getRandomValues(randomBytes);
+  for (let i = 0; i < 6; i++) {
+    result += chars[randomBytes[i] % chars.length];
+  }
+  return result;
 }
 
 async function codeSnapshot(request: Request, env: Env): Promise<Response> {

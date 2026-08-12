@@ -1,4 +1,4 @@
-import atriaLogo from '../assets/logos/atria.webp';
+import atriaLogo from '../assets/logos/aitlogo.png';
 import iseLogoLight from '../assets/logos/new_ise.png';
 import iseLogoDark from '../assets/logos/ise-untitled.png';
 import { Sun, Moon, Lightbulb } from 'lucide-react';
@@ -10,7 +10,7 @@ interface HeaderProps {
   onSenseiToggle?: () => void;
 }
 
-export default function Header({ 
+export default function Header({
   theme = 'light', onThemeToggle,
   senseiOpen = true, onSenseiToggle
 }: HeaderProps) {

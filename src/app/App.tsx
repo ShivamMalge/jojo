@@ -5,19 +5,23 @@ import {
   askSensei,
   assignQuestion,
   explainCode,
+  getActiveRoom,
   getProgress,
   getSettings,
+  leaveRoom,
   login,
   logout,
   me,
   register,
   runAssignedC,
   stuckHelp,
+  submitQuestion,
   updateSettings,
   type AppSettings,
   type AuthUser,
   type ChatMessage,
   type QuestionAssignment,
+  type RoomInfo,
   type RunResult,
   type StudentProgress,
 } from './api';
@@ -25,6 +29,8 @@ import DiagramPanel from './DiagramPanel';
 import EditorPanel from './EditorPanel';
 import LearningPanel from './LearningPanel';
 import SenseiPanel from './SenseiPanel';
+import RoomLandingModal from './RoomLandingModal';
+import ManagerDashboard from './ManagerDashboard';
 import { starterCode } from './examples';
 import { cheatSections, practiceQuestions } from './learningContent';
 import Header from './Header';
@@ -62,9 +68,10 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({ focusMinutes: 120 });
   const [code, setCode] = useState('');
-  const [stdin, setStdin] = useState('');
+
   const [output, setOutput] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [senseiBusy, setSenseiBusy] = useState(false);
@@ -76,6 +83,10 @@ export default function App() {
   const [assignment, setAssignment] = useState<QuestionAssignment | null>(null);
   const [compileCount, setCompileCount] = useState(0);
 
+  // Classroom Room State
+  const [showRoomModal, setShowRoomModal] = useState(false);
+  const [activeRoom, setActiveRoom] = useState<RoomInfo | null>(null);
+
   const selectedQuestion = useMemo(
     () => practiceQuestions.find((question) => question.id === selectedQuestionId) || practiceQuestions[0],
     [selectedQuestionId],
@@ -86,9 +97,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const triggerFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+    triggerFullscreen();
+    window.addEventListener('click', triggerFullscreen, { once: true });
+    window.addEventListener('keydown', triggerFullscreen, { once: true });
+    return () => {
+      window.removeEventListener('click', triggerFullscreen);
+      window.removeEventListener('keydown', triggerFullscreen);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user || user.role !== 'student') return;
-    // void pickAssignedQuestion(false);
+    void pickAssignedQuestion(false);
+    void checkActiveRoom();
   }, [user]);
+
+  async function checkActiveRoom() {
+    try {
+      const res = await getActiveRoom();
+      if (res.room) {
+        setActiveRoom(res.room);
+      } else {
+        setShowRoomModal(true);
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (!senseiEnabled || senseiBusy || code === lastIdleCode || code.trim().length < 12) return;
@@ -111,7 +151,7 @@ export default function App() {
     }
   }
 
-  async function handleRun() {
+  async function handleRun(stdin: string) {
     setRunning(true);
     try {
       const result = await runAssignedC(code, stdin, assignment?.id, selectedQuestion.id);
@@ -124,6 +164,19 @@ export default function App() {
       setOutput({ message: error instanceof Error ? error.message : 'Run failed.' });
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function handleSubmitQuestion() {
+    setSubmitting(true);
+    try {
+      await submitQuestion(selectedQuestion.id, code);
+      setOutput(null);
+      await pickAssignedQuestion(true);
+    } catch (error) {
+      setOutput({ message: error instanceof Error ? error.message : 'Submission failed.' });
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -242,7 +295,19 @@ Guide the student toward the next small edit. Do not reveal the full reference a
     );
   }
 
-  if (user.role === 'admin' || user.role === 'manager') {
+  if (user.role === 'manager') {
+    return (
+      <ManagerDashboard
+        username={user.username}
+        onLogout={() => {
+          logout();
+          setUser(null);
+        }}
+      />
+    );
+  }
+
+  if (user.role === 'admin') {
     return (
       <>
         <Header theme={theme} onThemeToggle={toggleTheme} />
@@ -267,48 +332,66 @@ Guide the student toward the next small edit. Do not reveal the full reference a
         senseiOpen={senseiOpen}
         onSenseiToggle={() => setSenseiOpen(o => !o)}
       />
+
+      {showRoomModal && (
+        <RoomLandingModal
+          activeRoom={activeRoom}
+          onJoinSuccess={(room) => {
+            setActiveRoom(room);
+            setShowRoomModal(false);
+          }}
+          onDirectAccess={() => {
+            setShowRoomModal(false);
+          }}
+          onClose={() => setShowRoomModal(false)}
+          onLeaveRoom={async () => {
+            await leaveRoom();
+            setActiveRoom(null);
+          }}
+        />
+      )}
+
       <main className={`app-shell ${!senseiOpen ? 'hide-sensei' : ''}`}>
-      <LearningPanel
-        questions={practiceQuestions}
-        selectedQuestion={selectedQuestion}
-        cheatSections={cheatSections}
-        selectedCheatId={selectedCheatId}
-        onQuestionChange={(id) => {
-          setAssignment(null);
-          setSelectedQuestionId(id);
-        }}
-        onRandomQuestion={() => void pickAssignedQuestion(true)}
-        randomLocked={Boolean(assignment)}
-        onCheatChange={setSelectedCheatId}
-      />
-      <EditorPanel
-        code={code}
-        stdin={stdin}
-        output={output}
-        running={running}
-        onCodeChange={setCode}
-        onStdinChange={setStdin}
-        onRun={handleRun}
-        onExplain={handleExplain}
-        compileCount={compileCount}
-        focusMinutes={settings.focusMinutes}
-        username={user.username}
-        onLogout={() => {
-          logout();
-          setUser(null);
-        }}
-      />
-      <DiagramPanel code={code} theme={theme} />
-      <SenseiPanel
-        messages={messages}
-        draft={draft}
-        busy={senseiBusy}
-        enabled={senseiEnabled}
-        onEnabledChange={setSenseiEnabled}
-        onDraftChange={setDraft}
-        onSend={() => handleSend()}
-        onHint={handleHint}
-      />
+        <LearningPanel
+          questions={practiceQuestions}
+          selectedQuestion={selectedQuestion}
+          cheatSections={cheatSections}
+          selectedCheatId={selectedCheatId}
+          onQuestionChange={(id) => {
+            setAssignment(null);
+            setSelectedQuestionId(id);
+            setOutput(null);
+          }}
+          onCheatChange={setSelectedCheatId}
+        />
+        <EditorPanel
+          code={code}
+          output={output}
+          running={running}
+          submitting={submitting}
+          onCodeChange={setCode}
+          onRunWithInput={handleRun}
+          onSubmit={handleSubmitQuestion}
+          onExplain={handleExplain}
+          compileCount={compileCount}
+          focusMinutes={settings.focusMinutes}
+          username={user.username}
+          onLogout={() => {
+            logout();
+            setUser(null);
+          }}
+        />
+        <DiagramPanel code={code} theme={theme} />
+        <SenseiPanel
+          messages={messages}
+          draft={draft}
+          busy={senseiBusy}
+          enabled={senseiEnabled}
+          onEnabledChange={setSenseiEnabled}
+          onDraftChange={setDraft}
+          onSend={() => handleSend()}
+          onHint={handleHint}
+        />
       </main>
       <Footer />
     </>
