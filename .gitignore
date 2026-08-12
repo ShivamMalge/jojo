@@ -5,3 +5,7 @@ dist/
 .dev.vars
 .wrangler/
 npm-debug.log*
+
+.env.local
+secrets.json
+test_compile.c
