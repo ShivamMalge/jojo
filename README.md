@@ -1,6 +1,15 @@
-# Jojo
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/assets/logos/jojo-lockup-dark.png">
+    <img src="src/assets/logos/jojo-lockup-light.png" alt="JoJo" width="280">
+  </picture>
+</p>
 
-Jojo is a browser-based C learning IDE with three core surfaces:
+<p align="center"><strong>A browser-based C learning IDE for absolute beginners.</strong></p>
+
+---
+
+JoJo has three core surfaces:
 
 - C editor and Judge0-backed run output
 - AI Sensei tutor endpoints adapted for Cloudflare Workers
