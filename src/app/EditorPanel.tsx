@@ -242,6 +242,18 @@ function DiagnosticRow({ diagnostic }: { diagnostic: Diagnostic }) {
 function TestResultsView({ results }: { results: TestOutcome[] }) {
   const passed = results.filter((item) => item.passed).length;
   const allPassed = passed === results.length;
+  // A build failure breaks every case in exactly the same way, so report the
+  // compiler once rather than repeating it per case.
+  const buildFailure = results.length > 0 && results.every((item) => item.compileOutput);
+
+  if (buildFailure) {
+    return (
+      <div className="output-panel-text" aria-live="polite">
+        <div className="test-summary is-fail">Your code did not compile, so the test cases could not run.</div>
+        <OutputView output={{ compile_output: results[0].compileOutput, stderr: results[0].stderr, status: { id: 6, description: 'Compilation Error' } }} />
+      </div>
+    );
+  }
 
   return (
     <div className="output-panel-text" aria-live="polite">
@@ -257,6 +269,39 @@ function TestResultsView({ results }: { results: TestOutcome[] }) {
   );
 }
 
+function TestFailureDetail({ result }: { result: TestOutcome }) {
+  // When the program never built, comparing expected against actual output is
+  // noise — the compiler message is the only thing worth showing.
+  const build = parseDiagnostics([result.compileOutput, cleanStderr(result.stderr)].filter(Boolean).join('\n'));
+  if (build.length > 0) {
+    return (
+      <div className="test-detail">
+        {build.map((item, index) => (
+          <DiagnosticRow key={'build-' + index} diagnostic={item} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="test-detail">
+      <div className="test-field">
+        <span className="test-field-key">Input</span>
+        <span className="test-field-value">{result.stdin ? result.stdin : '(no input)'}</span>
+      </div>
+      <div className="test-field">
+        <span className="test-field-key">Expected</span>
+        <span className="test-field-value">{result.expected || '(no output)'}</span>
+      </div>
+      <div className="test-field">
+        <span className="test-field-key">Your output</span>
+        <span className="test-field-value">{result.actual.trim() || '(nothing)'}</span>
+      </div>
+      <p className="test-reason">{result.reason}</p>
+    </div>
+  );
+}
+
 function TestRow({ result, index }: { result: TestOutcome; index: number }) {
   return (
     <div className={'test-row ' + (result.passed ? 'is-pass' : 'is-fail')}>
@@ -266,23 +311,7 @@ function TestRow({ result, index }: { result: TestOutcome; index: number }) {
           Case {index + 1}: {result.label}
         </span>
       </div>
-      {result.passed ? null : (
-        <div className="test-detail">
-          <div className="test-field">
-            <span className="test-field-key">Input</span>
-            <span className="test-field-value">{result.stdin ? result.stdin : '(no input)'}</span>
-          </div>
-          <div className="test-field">
-            <span className="test-field-key">Expected</span>
-            <span className="test-field-value">{result.expected || '(no output)'}</span>
-          </div>
-          <div className="test-field">
-            <span className="test-field-key">Your output</span>
-            <span className="test-field-value">{result.actual.trim() || '(nothing)'}</span>
-          </div>
-          <p className="test-reason">{result.reason}</p>
-        </div>
-      )}
+      {result.passed ? null : <TestFailureDetail result={result} />}
     </div>
   );
 }

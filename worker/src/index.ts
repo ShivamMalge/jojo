@@ -312,7 +312,11 @@ async function progress(request: Request, env: Env): Promise<Response> {
 async function assignQuestion(request: Request, env: Env): Promise<Response> {
   const user = await requireRole(request, env, ['student']);
   if (user instanceof Response) return user;
-  const body = await readJson<{ questions?: Array<{ id: number; title: string; explanation?: string }>; forceNext?: boolean }>(request);
+  const body = await readJson<{
+    questions?: Array<{ id: number; title: string; explanation?: string }>;
+    forceNext?: boolean;
+    afterQuestionId?: number;
+  }>(request);
   const questions = (body.questions || []).filter((question) => question.id && question.title);
   if (!questions.length) return json({ error: 'Question list is required.' }, env, 400);
   const db = getDb(env);
@@ -330,23 +334,22 @@ async function assignQuestion(request: Request, env: Env): Promise<Response> {
 
   if (active[0] && !body.forceNext) return json({ assignment: active[0] }, env);
 
-  // Determine next sequential question (Q1 -> Q2 -> Q3 ...)
-  let nextQId = 1;
-  if (active[0] && body.forceNext) {
-    nextQId = active[0].questionId + 1;
-  } else {
-    const highestSubmitted = (await db`
-      select coalesce(max(question_id), 0)::int as max_q
-      from student_question_assignments
-      where user_id = ${user.id} and submitted_at is not null
-    `) as unknown as Array<{ max_q: number }>;
-    const maxQ = highestSubmitted[0]?.max_q || 0;
-    nextQId = maxQ + 1;
-  }
+  const submittedRows = (await db`
+    select distinct question_id as "questionId"
+    from student_question_assignments
+    where user_id = ${user.id} and submitted_at is not null
+  `) as unknown as Array<{ questionId: number }>;
+  const submitted = new Set(submittedRows.map((row) => row.questionId));
 
-  if (nextQId > questions.length) {
-    nextQId = questions.length; // cap at highest available question
-  }
+  // Continue from the question just submitted, not from the highest one ever
+  // submitted -- otherwise finishing Q12 out of order sends the student back to
+  // whatever came after their previous best.
+  const after = Number(body.afterQuestionId) || active[0]?.questionId || 0;
+  const ordered = questions.map((question) => question.id).sort((a, b) => a - b);
+  const nextQId =
+    ordered.find((id) => id > after && !submitted.has(id)) ??
+    ordered.find((id) => !submitted.has(id)) ??
+    ordered[ordered.length - 1];
 
   const picked = questions.find((q) => q.id === nextQId) || questions[0];
 
