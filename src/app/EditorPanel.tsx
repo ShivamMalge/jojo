@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { CheckCircle, Play, Sparkles } from 'lucide-react';
-import type { RunResult } from './api';
+import type { RunResult, TestOutcome } from './api';
 import { cleanStderr, describeRuntimeIssue, parseDiagnostics, type Diagnostic } from '../lib/diagnostics';
 
 interface EditorPanelProps {
   code: string;
   output: RunResult | null;
+  testResults?: TestOutcome[];
   running: boolean;
   onCodeChange: (code: string) => void;
   onRunWithInput: (stdin: string) => void;
@@ -21,6 +22,7 @@ interface EditorPanelProps {
 export default function EditorPanel({
   code,
   output,
+  testResults = [],
   running,
   onCodeChange,
   onRunWithInput,
@@ -63,13 +65,10 @@ export default function EditorPanel({
 
   const hasCompiledCurrentCode = Boolean(compiledCode !== null && compiledCode === code);
 
-  const isSuccess = Boolean(
-    hasCompiledCurrentCode &&
-    output &&
-    output.status?.id === 3 &&
-    !output.compile_output &&
-    !output.stderr
-  );
+  // Status 3 means it built and exited cleanly. A leftover warning (an unused
+  // variable, say) should not block submitting — missing headers and other real
+  // mistakes are compile errors now, so they never reach status 3.
+  const isSuccess = Boolean(hasCompiledCurrentCode && output && output.status?.id === 3);
 
   const canSubmit = !running && !submitting && Boolean(code.trim()) && isSuccess;
   const submitTitle = !hasCompiledCurrentCode
@@ -127,7 +126,7 @@ export default function EditorPanel({
       />
       <div className="output-panel">
         <div className="output-panel-header">
-          <span>Output</span>
+          <span>{testResults.length > 0 ? 'Test Results' : 'Output'}</span>
         </div>
         <div className="output-panel-body">
           {waitingForInput ? (
@@ -148,6 +147,8 @@ export default function EditorPanel({
             <pre className="output-panel-text" aria-live="polite">
               {'Compiling & running...\n'}
             </pre>
+          ) : testResults.length > 0 ? (
+            <TestResultsView results={testResults} />
           ) : (
             <OutputView output={output} />
           )}
@@ -228,7 +229,60 @@ function DiagnosticRow({ diagnostic }: { diagnostic: Diagnostic }) {
         <span className={'diagnostic-severity is-' + diagnostic.severity}>{diagnostic.severity}</span>
         <span className="diagnostic-message">{diagnostic.message}</span>
         {diagnostic.snippet.length > 0 ? <pre className="diagnostic-snippet">{diagnostic.snippet.join('\n')}</pre> : null}
+        {diagnostic.notes.map((note, index) => (
+          <p key={'note-' + index} className="diagnostic-note">
+            Fix: {note}
+          </p>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function TestResultsView({ results }: { results: TestOutcome[] }) {
+  const passed = results.filter((item) => item.passed).length;
+  const allPassed = passed === results.length;
+
+  return (
+    <div className="output-panel-text" aria-live="polite">
+      <div className={'test-summary ' + (allPassed ? 'is-pass' : 'is-fail')}>
+        {allPassed
+          ? `All ${results.length} test cases passed — answer accepted.`
+          : `${passed} of ${results.length} test cases passed — fix the failing ones and submit again.`}
+      </div>
+      {results.map((item, index) => (
+        <TestRow key={index} result={item} index={index} />
+      ))}
+    </div>
+  );
+}
+
+function TestRow({ result, index }: { result: TestOutcome; index: number }) {
+  return (
+    <div className={'test-row ' + (result.passed ? 'is-pass' : 'is-fail')}>
+      <div className="test-row-head">
+        <span className={'test-badge ' + (result.passed ? 'is-pass' : 'is-fail')}>{result.passed ? 'PASS' : 'FAIL'}</span>
+        <span className="test-label">
+          Case {index + 1}: {result.label}
+        </span>
+      </div>
+      {result.passed ? null : (
+        <div className="test-detail">
+          <div className="test-field">
+            <span className="test-field-key">Input</span>
+            <span className="test-field-value">{result.stdin ? result.stdin : '(no input)'}</span>
+          </div>
+          <div className="test-field">
+            <span className="test-field-key">Expected</span>
+            <span className="test-field-value">{result.expected || '(no output)'}</span>
+          </div>
+          <div className="test-field">
+            <span className="test-field-key">Your output</span>
+            <span className="test-field-value">{result.actual.trim() || '(nothing)'}</span>
+          </div>
+          <p className="test-reason">{result.reason}</p>
+        </div>
+      )}
     </div>
   );
 }

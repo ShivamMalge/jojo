@@ -1,5 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import { analyzeC, generateMermaid } from '../../src/lib/cAnalysis';
+import { expectedText, gradeCase, type TestCase } from './grader';
+import { testCasesFor } from './testcases';
 
 type LearningLevel = 'beginner' | 'intermediate' | 'pro';
 type UserRole = 'student' | 'manager' | 'admin';
@@ -15,6 +17,7 @@ interface Env {
   OPENROUTER_MODEL?: string;
   JUDGE0_BASE_URL?: string;
   JUDGE0_C_LANGUAGE_ID?: string;
+  JUDGE0_COMPILER_OPTIONS?: string;
   APP_ORIGIN?: string;
 }
 
@@ -27,6 +30,17 @@ interface AuthUser {
 }
 
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
+
+interface TestOutcome {
+  label: string;
+  stdin: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  reason: string;
+  compileOutput?: string;
+  stderr?: string;
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -138,6 +152,18 @@ async function me(request: Request, env: Env): Promise<Response> {
   return json({ user }, env);
 }
 
+/**
+ * Forgetting a header is the single most common beginner mistake. gcc only warns
+ * about an implicit declaration and links against libc anyway, so the program
+ * runs and the mistake goes unnoticed. Promoting it to an error makes gcc name
+ * the missing header and the exact line.
+ */
+const DEFAULT_COMPILER_OPTIONS = '-Werror=implicit-function-declaration';
+
+function compilerOptions(env: Env): string {
+  return env.JUDGE0_COMPILER_OPTIONS ?? DEFAULT_COMPILER_OPTIONS;
+}
+
 async function runC(request: Request, env: Env): Promise<Response> {
   const user = await getUserFromRequest(request, env);
   const body = await readJson<{ code?: string; stdin?: string; assignmentId?: string; questionId?: number }>(request);
@@ -154,6 +180,7 @@ async function runC(request: Request, env: Env): Promise<Response> {
       source_code: toBase64(body.code),
       stdin: toBase64(body.stdin || ''),
       language_id: languageId,
+      compiler_options: compilerOptions(env),
     }),
   });
 
@@ -337,6 +364,31 @@ async function submitQuestion(request: Request, env: Env): Promise<Response> {
   const body = await readJson<{ questionId: number; code?: string }>(request);
   if (!body.questionId) return json({ error: 'questionId is required.' }, env, 400);
 
+  // Hidden test cases are the real gate: "it compiled" is not "it is correct".
+  const cases = testCasesFor(body.questionId);
+  let results: TestOutcome[] = [];
+  if (cases.length) {
+    if (!body.code?.trim()) return json({ error: 'Your code is required to check the answer.' }, env, 400);
+    results = await runTestCases(env, body.code, cases);
+    const passedCount = results.filter((outcome) => outcome.passed).length;
+    if (passedCount < results.length) {
+      // 400, not 200: an older client that does not understand `results` still
+      // treats this as a failure and keeps the student on the question.
+      return json(
+        {
+          ok: false,
+          passed: false,
+          error: `${passedCount} of ${results.length} test cases passed. Fix the failing cases and submit again.`,
+          results,
+          passedCount,
+          total: results.length,
+        },
+        env,
+        400,
+      );
+    }
+  }
+
   const db = getDb(env);
 
   // Mark assignment submitted
@@ -374,7 +426,18 @@ async function submitQuestion(request: Request, env: Env): Promise<Response> {
   `;
 
   const nextQuestionId = body.questionId + 1;
-  return json({ ok: true, submittedQuestionId: body.questionId, nextQuestionId }, env);
+  return json(
+    {
+      ok: true,
+      passed: true,
+      results,
+      passedCount: results.length,
+      total: results.length,
+      submittedQuestionId: body.questionId,
+      nextQuestionId,
+    },
+    env,
+  );
 }
 
 async function createRoom(request: Request, env: Env): Promise<Response> {
@@ -606,6 +669,81 @@ async function pollJudge0(baseUrl: string, token: string): Promise<Judge0Result>
     await sleep(700);
   }
   throw new Error('Judge0 timed out while compiling.');
+}
+
+/** Runs one program against every test case for a question in a single Judge0 batch. */
+async function runTestCases(env: Env, code: string, cases: TestCase[]): Promise<TestOutcome[]> {
+  const baseUrl = env.JUDGE0_BASE_URL || 'https://ce.judge0.com';
+  const languageId = Number(env.JUDGE0_C_LANGUAGE_ID || 50);
+
+  const submission = await fetch(`${baseUrl}/submissions/batch?base64_encoded=true`, {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({
+      submissions: cases.map((testCase) => ({
+        source_code: toBase64(code),
+        stdin: toBase64(testCase.stdin),
+        language_id: languageId,
+        compiler_options: compilerOptions(env),
+      })),
+    }),
+  });
+  if (!submission.ok) {
+    const detail = await submission.text().catch(() => '');
+    throw new Error(`Judge0 batch submission failed (${submission.status}). ${detail}`.trim());
+  }
+
+  const tokens = ((await submission.json()) as Array<{ token: string }>).map((entry) => entry.token);
+  const results = await pollJudge0Batch(baseUrl, tokens);
+  return cases.map((testCase, index) => toOutcome(testCase, results[index]));
+}
+
+async function pollJudge0Batch(baseUrl: string, tokens: string[]): Promise<Judge0Result[]> {
+  const query = tokens.join(',');
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const response = await fetch(`${baseUrl}/submissions/batch?tokens=${query}&base64_encoded=true`);
+    if (!response.ok) {
+      await sleep(900);
+      continue;
+    }
+    const { submissions } = (await response.json()) as { submissions: Judge0Result[] };
+    if (submissions.every((entry) => (entry.status?.id || 0) > 2)) {
+      return submissions.map((entry) => ({
+        ...entry,
+        stdout: fromBase64(entry.stdout),
+        stderr: fromBase64(entry.stderr),
+        compile_output: fromBase64(entry.compile_output),
+        message: fromBase64(entry.message),
+      }));
+    }
+    await sleep(900);
+  }
+  throw new Error('Judge0 timed out while running the test cases.');
+}
+
+function toOutcome(testCase: TestCase, result?: Judge0Result): TestOutcome {
+  const base = {
+    label: testCase.label,
+    stdin: testCase.stdin,
+    expected: expectedText(testCase),
+    actual: result?.stdout || '',
+  };
+
+  if (!result) return { ...base, passed: false, reason: 'The judge did not return a result for this case.' };
+
+  // A program that will not build or crashes fails before its output matters.
+  if (result.status?.id !== 3) {
+    return {
+      ...base,
+      passed: false,
+      reason: result.status?.description || 'The program did not run successfully.',
+      compileOutput: result.compile_output || '',
+      stderr: result.stderr || '',
+    };
+  }
+
+  const verdict = gradeCase(testCase, result.stdout || '');
+  return { ...base, passed: verdict.passed, reason: verdict.reason };
 }
 
 function toBase64(value: string): string {

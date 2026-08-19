@@ -1214,3 +1214,96 @@ h2 {
   font-size: 13px;
   font-weight: 700;
 }
+
+/* Hidden test-case results shown after Submit */
+.test-summary {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.test-summary.is-pass {
+  color: #34d399;
+}
+
+.test-summary.is-fail {
+  color: #ff6b6b;
+}
+
+.test-row {
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.test-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.test-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.test-badge.is-pass {
+  color: #052e21;
+  background: #34d399;
+}
+
+.test-badge.is-fail {
+  color: #2b0b0b;
+  background: #ff6b6b;
+}
+
+.test-label {
+  color: var(--terminal-text);
+  font-size: 13px;
+}
+
+.test-detail {
+  margin: 6px 0 2px 46px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 2px solid rgba(255, 107, 107, 0.6);
+  border-radius: 3px;
+}
+
+.test-field {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.test-field-key {
+  flex: 0 0 auto;
+  min-width: 88px;
+  color: var(--terminal-label);
+}
+
+.test-field-value {
+  color: var(--terminal-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.test-reason {
+  margin: 6px 0 0;
+  color: #fbbf24;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.diagnostic-note {
+  margin: 4px 0 0;
+  color: #60a5fa;
+  font-size: 12px;
+  line-height: 1.5;
+}

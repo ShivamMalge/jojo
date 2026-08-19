@@ -23,6 +23,7 @@ import {
   type QuestionAssignment,
   type RoomInfo,
   type RunResult,
+  type TestOutcome,
   type StudentProgress,
 } from './api';
 import DiagramPanel from './DiagramPanel';
@@ -70,6 +71,7 @@ export default function App() {
   const [code, setCode] = useState('');
 
   const [output, setOutput] = useState<RunResult | null>(null);
+  const [testResults, setTestResults] = useState<TestOutcome[]>([]);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -170,10 +172,16 @@ export default function App() {
   async function handleSubmitQuestion() {
     setSubmitting(true);
     try {
-      await submitQuestion(selectedQuestion.id, code);
+      const result = await submitQuestion(selectedQuestion.id, code);
+      setTestResults(result.results || []);
+      // Failing the hidden tests is a normal outcome, not an error: stay on the
+      // question and let the student see which cases did not match.
+      if (result.results?.length && !result.passed) return;
       setOutput(null);
+      setTestResults([]);
       await pickAssignedQuestion(true);
     } catch (error) {
+      setTestResults([]);
       setOutput({ message: error instanceof Error ? error.message : 'Submission failed.' });
     } finally {
       setSubmitting(false);
@@ -371,12 +379,14 @@ Guide the student toward the next small edit. Do not reveal the full reference a
             setAssignment(null);
             setSelectedQuestionId(id);
             setOutput(null);
+            setTestResults([]);
           }}
           onCheatChange={setSelectedCheatId}
         />
         <EditorPanel
           code={code}
           output={output}
+          testResults={testResults}
           running={running}
           submitting={submitting}
           onCodeChange={setCode}
