@@ -1307,3 +1307,25 @@ h2 {
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* JoJo brand lockup — pinwheel mark plus wordmark */
+.global-header .header-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+  /* The trailing hook of the mark inherits this. */
+  color: var(--text-primary-dark);
+}
+
+.global-header .header-brand svg {
+  flex: 0 0 auto;
+}
+
+.global-header .header-wordmark {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary-dark);
+}
