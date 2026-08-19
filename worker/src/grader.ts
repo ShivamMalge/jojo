@@ -31,12 +31,47 @@ export interface CaseResult {
 }
 
 const NUMBER_PATTERN = /-?\d+(?:\.\d+)?/g;
+const INPUT_CALL = /\b(?:scanf|gets|fgets|getchar|fgetc|getline)\s*\(/;
+
+export interface GradeContext {
+  /** Whether the submitted program tries to read from stdin. */
+  readsInput?: boolean;
+}
 
 export function expectedText(testCase: TestCase): string {
   return Array.isArray(testCase.expect) ? testCase.expect.join('\n') : testCase.expect;
 }
 
-export function gradeCase(testCase: TestCase, stdout: string): { passed: boolean; reason: string } {
+/** True when the program calls something that waits on stdin. */
+export function readsStdin(code: string): boolean {
+  return INPUT_CALL.test(code);
+}
+
+export function gradeCase(
+  testCase: TestCase,
+  stdout: string,
+  context?: GradeContext,
+): { passed: boolean; reason: string } {
+  const verdict = evaluate(testCase, stdout);
+  if (verdict.passed) return verdict;
+
+  // Reading input on a question that supplies none is a common beginner slip:
+  // scanf hits end-of-file, the variable is never assigned, and the output is
+  // whatever happened to be in memory. Say that outright.
+  if (!testCase.stdin && context?.readsInput) {
+    return {
+      passed: false,
+      reason:
+        'This question does not give your program any input, but it calls scanf (or similar) and waits for some. ' +
+        'Nothing is read, so the variable never gets a value. Set the value directly in your code instead — ' +
+        `for example int num = 10;. ${verdict.reason}`,
+    };
+  }
+
+  return verdict;
+}
+
+function evaluate(testCase: TestCase, stdout: string): { passed: boolean; reason: string } {
   const expected = expectedText(testCase);
   const actual = stdout || '';
 

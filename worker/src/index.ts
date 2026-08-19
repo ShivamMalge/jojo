@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { analyzeC, generateMermaid } from '../../src/lib/cAnalysis';
-import { expectedText, gradeCase, type TestCase } from './grader';
+import { expectedText, gradeCase, readsStdin, type GradeContext, type TestCase } from './grader';
 import { testCasesFor } from './testcases';
 
 type LearningLevel = 'beginner' | 'intermediate' | 'pro';
@@ -695,7 +695,8 @@ async function runTestCases(env: Env, code: string, cases: TestCase[]): Promise<
 
   const tokens = ((await submission.json()) as Array<{ token: string }>).map((entry) => entry.token);
   const results = await pollJudge0Batch(baseUrl, tokens);
-  return cases.map((testCase, index) => toOutcome(testCase, results[index]));
+  const context: GradeContext = { readsInput: readsStdin(code) };
+  return cases.map((testCase, index) => toOutcome(testCase, results[index], context));
 }
 
 async function pollJudge0Batch(baseUrl: string, tokens: string[]): Promise<Judge0Result[]> {
@@ -721,7 +722,7 @@ async function pollJudge0Batch(baseUrl: string, tokens: string[]): Promise<Judge
   throw new Error('Judge0 timed out while running the test cases.');
 }
 
-function toOutcome(testCase: TestCase, result?: Judge0Result): TestOutcome {
+function toOutcome(testCase: TestCase, result: Judge0Result | undefined, context: GradeContext): TestOutcome {
   const base = {
     label: testCase.label,
     stdin: testCase.stdin,
@@ -742,7 +743,7 @@ function toOutcome(testCase: TestCase, result?: Judge0Result): TestOutcome {
     };
   }
 
-  const verdict = gradeCase(testCase, result.stdout || '');
+  const verdict = gradeCase(testCase, result.stdout || '', context);
   return { ...base, passed: verdict.passed, reason: verdict.reason };
 }
 

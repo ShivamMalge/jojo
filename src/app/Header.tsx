@@ -3,6 +3,7 @@ import iseLogoLight from '../assets/logos/new_ise.png';
 import iseLogoDark from '../assets/logos/ise-untitled.png';
 import { Sun, Moon, Lightbulb, LogIn, LogOut, Users } from 'lucide-react';
 import type { RoomInfo } from './api';
+import JojoMark from './JojoMark';
 
 interface HeaderProps {
   theme?: 'light' | 'dark';
@@ -29,7 +30,10 @@ export default function Header({
         <img src={atriaLogo} alt="ATRIA Logo" className="logo" />
         <img src={theme === 'dark' ? iseLogoDark : iseLogoLight} alt="ISE Logo" className="logo" />
       </div>
-      <span className="header-title">Jojo</span>
+      <span className="header-brand">
+        <JojoMark size={22} title="JoJo" />
+        <span className="header-wordmark">JoJo</span>
+      </span>
 
       <div style={{ flex: 1 }} />
 
