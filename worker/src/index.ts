@@ -145,17 +145,22 @@ async function runC(request: Request, env: Env): Promise<Response> {
 
   const baseUrl = env.JUDGE0_BASE_URL || 'https://ce.judge0.com';
   const languageId = Number(env.JUDGE0_C_LANGUAGE_ID || 50);
-  const submission = await fetch(`${baseUrl}/submissions?base64_encoded=false&wait=false`, {
+  // base64 is required both ways: gcc diagnostics contain smart quotes that Judge0
+  // refuses to serialise as plain text, which used to drop every compile error.
+  const submission = await fetch(`${baseUrl}/submissions?base64_encoded=true&wait=false`, {
     method: 'POST',
     headers: JSON_HEADERS,
     body: JSON.stringify({
-      source_code: body.code,
-      stdin: body.stdin || '',
+      source_code: toBase64(body.code),
+      stdin: toBase64(body.stdin || ''),
       language_id: languageId,
     }),
   });
 
-  if (!submission.ok) return json({ error: 'Judge0 submission failed.' }, env, 502);
+  if (!submission.ok) {
+    const detail = await submission.text().catch(() => '');
+    return json({ error: `Judge0 submission failed. ${detail}`.trim() }, env, 502);
+  }
   const { token } = (await submission.json()) as { token: string };
   const result = await pollJudge0(baseUrl, token);
   await recordCompile(env, user, body, result);
@@ -570,16 +575,56 @@ ${body.code.slice(0, 3000)}`,
   return json(result, env);
 }
 
-async function pollJudge0(baseUrl: string, token: string): Promise<unknown> {
+interface Judge0Result {
+  stdout?: string | null;
+  stderr?: string | null;
+  compile_output?: string | null;
+  message?: string | null;
+  time?: string | null;
+  memory?: number | null;
+  status?: { id?: number; description?: string };
+}
+
+async function pollJudge0(baseUrl: string, token: string): Promise<Judge0Result> {
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    const response = await fetch(`${baseUrl}/submissions/${token}?base64_encoded=false`);
-    if (!response.ok) throw new Error('Judge0 polling failed.');
-    const result = (await response.json()) as { status?: { id?: number } };
+    const response = await fetch(`${baseUrl}/submissions/${token}?base64_encoded=true`);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`Judge0 polling failed (${response.status}). ${detail}`.trim());
+    }
+    const result = (await response.json()) as Judge0Result;
     const statusId = result.status?.id || 0;
-    if (statusId > 2) return result;
+    if (statusId > 2) {
+      return {
+        ...result,
+        stdout: fromBase64(result.stdout),
+        stderr: fromBase64(result.stderr),
+        compile_output: fromBase64(result.compile_output),
+        message: fromBase64(result.message),
+      };
+    }
     await sleep(700);
   }
   throw new Error('Judge0 timed out while compiling.');
+}
+
+function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function fromBase64(value?: string | null): string {
+  if (!value) return '';
+  try {
+    const binary = atob(value.replace(/\s/g, ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return value;
+  }
 }
 
 async function callOpenRouter(
