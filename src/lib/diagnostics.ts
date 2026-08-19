@@ -6,6 +6,8 @@ export interface Diagnostic {
   severity: Severity;
   message: string;
   snippet: string[];
+  /** gcc "note:" lines, which usually say how to fix it. */
+  notes: string[];
 }
 
 export interface RuntimeIssue {
@@ -22,37 +24,78 @@ const LINKER_LINE = /undefined reference to\s+[`'‘"]?([^'’"`]+)/;
 export function parseDiagnostics(raw: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const lines = normalizeQuotes(raw).split('\n');
+  // Which diagnostic the following caret/source lines belong to.
+  let snippetTarget: Diagnostic | null = null;
 
   for (const line of lines) {
     const match = DIAGNOSTIC_LINE.exec(line.trim());
     if (match) {
-      const [, lineNo, columnNo, severity, message] = match;
-      diagnostics.push({
+      const [, lineNo, columnNo, rawSeverity, message] = match;
+      const previous = diagnostics[diagnostics.length - 1];
+
+      // A note explains the diagnostic above it ("include '<stdio.h>'"), so
+      // keep the two together instead of listing it as its own finding.
+      if (rawSeverity === 'note' && previous) {
+        previous.notes.push(message);
+        snippetTarget = null;
+        continue;
+      }
+
+      const diagnostic: Diagnostic = {
         line: Number(lineNo),
         column: columnNo ? Number(columnNo) : undefined,
-        severity: severity === 'fatal error' ? 'error' : (severity as Severity),
-        message,
+        severity: rawSeverity === 'fatal error' ? 'error' : (rawSeverity as Severity),
+        message: stripFlag(message),
         snippet: [],
-      });
+        notes: [],
+      };
+      diagnostics.push(diagnostic);
+      snippetTarget = diagnostic;
       continue;
     }
 
     const linker = LINKER_LINE.exec(line);
     if (linker) {
-      diagnostics.push({
+      const diagnostic: Diagnostic = {
         severity: 'error',
         message: `undefined reference to '${linker[1]}' — the function is declared or called but never defined.`,
         snippet: [],
-      });
+        notes: [],
+      };
+      diagnostics.push(diagnostic);
+      snippetTarget = diagnostic;
       continue;
     }
 
     // Caret/source lines ("    4 |   printf(...)") belong to the diagnostic above them.
-    const previous = diagnostics[diagnostics.length - 1];
-    if (previous && /\|/.test(line) && line.trim()) previous.snippet.push(line);
+    if (snippetTarget && /\|/.test(line) && line.trim()) snippetTarget.snippet.push(line);
   }
 
-  return diagnostics;
+  return dropWarningsShadowedByErrors(diagnostics);
+}
+
+/**
+ * gcc often reports a warning on the same line as an error (a missing header
+ * yields both, with the "include <stdio.h>" note hanging off the warning).
+ * Keep only the error, but carry any notes across so the fix is not lost.
+ */
+function dropWarningsShadowedByErrors(diagnostics: Diagnostic[]): Diagnostic[] {
+  const errorByLine = new Map<number, Diagnostic>();
+  for (const item of diagnostics) {
+    if (item.severity === 'error' && item.line !== undefined && !errorByLine.has(item.line)) {
+      errorByLine.set(item.line, item);
+    }
+  }
+
+  return diagnostics.filter((item) => {
+    if (item.severity !== 'warning' || item.line === undefined) return true;
+    const shadowing = errorByLine.get(item.line);
+    if (!shadowing) return true;
+    for (const note of item.notes) {
+      if (!shadowing.notes.includes(note)) shadowing.notes.push(note);
+    }
+    return false;
+  });
 }
 
 const SIGNAL_ISSUES: Array<{ match: RegExp; issue: RuntimeIssue }> = [
@@ -136,6 +179,11 @@ export function cleanStderr(stderr?: string | null): string {
     .filter((line) => !/^\s*run\.sh:\s*line\s*\d+:/.test(line))
     .join('\n')
     .trim();
+}
+
+/** Drops gcc's trailing flag tag, e.g. "[-Wunused-variable]" — noise for a learner. */
+function stripFlag(message: string): string {
+  return message.replace(/\s*\[-W[^\]]*\]\s*$/, '').trim();
 }
 
 function normalizeQuotes(value: string): string {

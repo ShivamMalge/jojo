@@ -116,8 +116,43 @@ export interface QuestionAssignment {
   explanation?: string;
 }
 
-export async function submitQuestion(questionId: number, code?: string): Promise<{ ok: boolean; nextQuestionId: number }> {
-  return post('/questions/submit', { questionId, code }, getToken());
+export interface TestOutcome {
+  label: string;
+  stdin: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  reason: string;
+  compileOutput?: string;
+  stderr?: string;
+}
+
+export interface SubmitResult {
+  ok: boolean;
+  passed: boolean;
+  results: TestOutcome[];
+  passedCount: number;
+  total: number;
+  nextQuestionId?: number;
+}
+
+export async function submitQuestion(questionId: number, code?: string): Promise<SubmitResult> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE}/questions/submit`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ questionId, code }),
+  });
+  const payload = (await response.json()) as SubmitResult & { error?: string };
+  // Failing the hidden tests comes back as 400 so that older clients cannot
+  // mistake it for a pass; here it is a normal result we want to render.
+  if (!response.ok && !payload.results) {
+    throw new Error(payload.error || `Request failed: ${response.status}`);
+  }
+  return payload;
 }
 
 export async function createRoom(name: string, roomCode?: string): Promise<{ room: RoomInfo }> {
