@@ -1521,3 +1521,26 @@ h2 {
   fill: var(--diagram-bg) !important;
   opacity: 1;
 }
+
+/* Question picker: full-width select, navigation beneath it */
+.question-select {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border-muted);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary-dark);
+  font-size: 13px;
+}
+
+.sequential-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.sequential-controls .icon-text-button {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
