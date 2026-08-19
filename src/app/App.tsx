@@ -177,9 +177,10 @@ export default function App() {
       // Failing the hidden tests is a normal outcome, not an error: stay on the
       // question and let the student see which cases did not match.
       if (result.results?.length && !result.passed) return;
+      // Leave the passing results on screen -- clearing them here meant a
+      // correct answer flashed past with no confirmation that it was checked.
       setOutput(null);
-      setTestResults([]);
-      await pickAssignedQuestion(true);
+      await pickAssignedQuestion(true, selectedQuestion.id);
     } catch (error) {
       setTestResults([]);
       setOutput({ message: error instanceof Error ? error.message : 'Submission failed.' });
@@ -206,11 +207,12 @@ export default function App() {
     }
   }
 
-  async function pickAssignedQuestion(forceNext: boolean) {
+  async function pickAssignedQuestion(forceNext: boolean, afterQuestionId?: number) {
     try {
       const response = await assignQuestion(
         practiceQuestions.map(({ id, title, explanation }) => ({ id, title, explanation })),
         forceNext,
+        afterQuestionId,
       );
       setAssignment(response.assignment);
       setSelectedQuestionId(response.assignment.questionId);

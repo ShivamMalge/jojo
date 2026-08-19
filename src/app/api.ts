@@ -74,8 +74,9 @@ export async function getProgress(): Promise<{ students: StudentProgress[] }> {
 export async function assignQuestion(
   questions: Array<{ id: number; title: string; explanation?: string }>,
   forceNext = false,
+  afterQuestionId?: number,
 ): Promise<{ assignment: QuestionAssignment }> {
-  return post('/questions/assign', { questions, forceNext }, getToken());
+  return post('/questions/assign', { questions, forceNext, afterQuestionId }, getToken());
 }
 
 export async function analyzeIdleCode(payload: {
