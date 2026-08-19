@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle, Play, Sparkles } from 'lucide-react';
 import type { RunResult } from './api';
+import { cleanStderr, describeRuntimeIssue, parseDiagnostics, type Diagnostic } from '../lib/diagnostics';
 
 interface EditorPanelProps {
   code: string;
@@ -148,9 +149,7 @@ export default function EditorPanel({
               {'Compiling & running...\n'}
             </pre>
           ) : (
-            <pre className="output-panel-text" aria-live="polite">
-              {formatOutput(output)}
-            </pre>
+            <OutputView output={output} />
           )}
         </div>
       </div>
@@ -158,33 +157,78 @@ export default function EditorPanel({
   );
 }
 
-function formatOutput(output: RunResult | null): string {
-  if (!output) return '';
+function OutputView({ output }: { output: RunResult | null }) {
+  if (!output) return <div className="output-panel-text" aria-live="polite" />;
 
-  const parts: string[] = [];
-
-  if (output.compile_output) {
-    parts.push(output.compile_output);
-  }
-
-  if (output.stdout) {
-    parts.push(output.stdout);
-  }
-
-  if (output.stderr) {
-    parts.push(output.stderr);
-  }
-
+  const stderr = cleanStderr(output.stderr);
+  const diagnostics = parseDiagnostics([output.compile_output, stderr].filter(Boolean).join('\n'));
+  const errors = diagnostics.filter((item) => item.severity === 'error');
+  const warnings = diagnostics.filter((item) => item.severity === 'warning');
+  const runtime = describeRuntimeIssue(output.status?.id, output.status?.description, output.stderr);
   const isSuccess = output.status?.id === 3;
-  if (isSuccess) {
-    parts.push('\n=== Code Execution Successful ===');
-  } else if (output.status?.description) {
-    parts.push(`\n[${output.status.description}]`);
-  }
+  // Only fall back to the raw compiler dump when nothing could be parsed out of it.
+  const unparsed = diagnostics.length === 0 && !runtime ? [output.compile_output, stderr].filter(Boolean).join('\n') : '';
 
-  if (output.message) {
-    parts.push(output.message);
-  }
+  return (
+    <div className="output-panel-text" aria-live="polite">
+      {output.stdout ? <pre className="output-stdout">{output.stdout}</pre> : null}
 
-  return parts.filter(Boolean).join('\n');
+      {errors.length > 0 ? (
+        <div className="diagnostic-group">
+          <div className="diagnostic-heading is-error">
+            {errors.length === 1 ? '1 error' : errors.length + ' errors'} — fix these before running
+          </div>
+          {errors.map((item, index) => (
+            <DiagnosticRow key={'error-' + index} diagnostic={item} />
+          ))}
+        </div>
+      ) : null}
+
+      {warnings.length > 0 ? (
+        <div className="diagnostic-group">
+          <div className="diagnostic-heading is-warning">
+            {warnings.length === 1 ? '1 warning' : warnings.length + ' warnings'}
+          </div>
+          {warnings.map((item, index) => (
+            <DiagnosticRow key={'warning-' + index} diagnostic={item} />
+          ))}
+        </div>
+      ) : null}
+
+      {runtime ? (
+        <div className="diagnostic-group">
+          <div className="diagnostic-heading is-error">{runtime.title}</div>
+          {runtime.hint ? <p className="diagnostic-hint">{runtime.hint}</p> : null}
+          {stderr && diagnostics.length === 0 ? <pre className="diagnostic-snippet">{stderr}</pre> : null}
+        </div>
+      ) : null}
+
+      {unparsed ? <pre className="output-stdout">{unparsed}</pre> : null}
+      {output.message ? <pre className="output-stdout">{output.message}</pre> : null}
+
+      {isSuccess ? (
+        <div className="diagnostic-success">
+          === Code Execution Successful ==={output.time ? '  (' + output.time + 's)' : ''}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DiagnosticRow({ diagnostic }: { diagnostic: Diagnostic }) {
+  const location =
+    diagnostic.line === undefined
+      ? 'Linker'
+      : 'Line ' + diagnostic.line + (diagnostic.column === undefined ? '' : ', Col ' + diagnostic.column);
+
+  return (
+    <div className="diagnostic-row">
+      <div className="diagnostic-location">{location}</div>
+      <div className="diagnostic-body">
+        <span className={'diagnostic-severity is-' + diagnostic.severity}>{diagnostic.severity}</span>
+        <span className="diagnostic-message">{diagnostic.message}</span>
+        {diagnostic.snippet.length > 0 ? <pre className="diagnostic-snippet">{diagnostic.snippet.join('\n')}</pre> : null}
+      </div>
+    </div>
+  );
 }
