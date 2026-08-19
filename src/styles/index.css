@@ -1111,3 +1111,106 @@ h2 {
 .output-input-area::placeholder {
   color: rgba(148, 163, 184, 0.4);
 }
+
+/* Compiler diagnostics — line/column aware error reporting */
+.output-stdout {
+  margin: 0 0 8px;
+  color: var(--terminal-text);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diagnostic-group {
+  margin-bottom: 10px;
+}
+
+.diagnostic-heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
+}
+
+.diagnostic-heading.is-error {
+  color: #ff6b6b;
+}
+
+.diagnostic-heading.is-warning {
+  color: #fbbf24;
+}
+
+.diagnostic-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.diagnostic-location {
+  flex: 0 0 auto;
+  min-width: 104px;
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 700;
+  padding-top: 1px;
+}
+
+.diagnostic-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.diagnostic-severity {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diagnostic-severity.is-error {
+  color: #ff6b6b;
+}
+
+.diagnostic-severity.is-warning {
+  color: #fbbf24;
+}
+
+.diagnostic-severity.is-note {
+  color: var(--terminal-label);
+}
+
+.diagnostic-message {
+  color: var(--terminal-text);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.diagnostic-snippet {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 2px solid rgba(255, 107, 107, 0.6);
+  border-radius: 3px;
+  color: var(--terminal-label);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.diagnostic-hint {
+  margin: 0;
+  color: var(--terminal-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.diagnostic-success {
+  color: #34d399;
+  font-size: 13px;
+  font-weight: 700;
+}
